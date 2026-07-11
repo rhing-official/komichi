@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=komichi
+Exec=komichi
+Icon=io.github.rhing.komichi
+Categories=Utility;
+Terminal=false

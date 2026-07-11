@@ -1,0 +1,67 @@
+app-id: io.github.rhing.komichi
+runtime: org.gnome.Platform
+runtime-version: '46'
+sdk: org.gnome.Sdk
+command: komichi
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --share=network
+  - --filesystem=home # ライブラリ読み込みのために必要
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.secrets # パスワード保存等に必要
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --talk-name=org.freedesktop.portal.Documents
+  - --talk-name=org.freedesktop.Flatpak
+
+modules:
+  # 1. PDF処理ツール（poppler）
+  - name: poppler
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DENABLE_QT5=OFF
+      - -DENABLE_QT6=OFF
+      - -DENABLE_GLIB=OFF
+      - -DENABLE_GOBJECT_INTROSPECTION=OFF
+      - -DENABLE_CPP=OFF
+      - -DENABLE_GTK_DOC=OFF
+      - -DBUILD_GTK_TESTS=OFF
+      - -DENABLE_UTILS=ON
+      - -DENABLE_CMS=none
+      - -DENABLE_LIBCURL=OFF
+      - -DENABLE_BOOST=OFF
+      - -DENABLE_NSS3=OFF
+    sources:
+      - type: git
+        url: https://gitlab.freedesktop.org/poppler/poppler.git
+        tag: poppler-24.04.0
+
+  # 2. フォルダ選択用ツール（zenity）
+  - name: zenity
+    buildsystem: meson
+    sources:
+      - type: git
+        url: https://github.com/GNOME/zenity.git
+        tag: 4.2.2
+
+  # 3. アプリ本体
+    buildsystem: simple
+    build-commands:
+      # Flutterのリリースバイナリを /app/bin に配置
+      - mkdir -p /app/bin
+      - cp -r * /app/bin/
+      # アイコンのインストール
+      - install -D io.github.rhing.komichi.png /app/share/icons/hicolor/512x512/apps/io.github.rhing.komichi.png
+      # デスクトップファイルのインストール
+      - install -D io.github.rhing.komichi.desktop /app/share/applications/io.github.rhing.komichi.desktop
+    sources:
+      - type: dir
+        path: build/linux/x64/release/bundle
+      - type: file
+        path: icon.png
+        dest-filename: io.github.rhing.komichi.png
+      - type: file
+        path: io.github.rhing.komichi.desktop
