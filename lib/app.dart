@@ -103,7 +103,7 @@ class _TabShellState extends ConsumerState<TabShell>
   // 220msだと速すぎて動きが目に留まらなかったため、体感できる速さまで伸ばし、
   // イージングも付けて動き自体をはっきりさせる
   late final AnimationController _pathBarAnim = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 8000));
+      vsync: this, duration: const Duration(milliseconds: 10000));
   late final Animation<double> _pathBarCurve = CurvedAnimation(
       parent: _pathBarAnim,
       curve: Curves.easeOutCubic,
@@ -458,7 +458,7 @@ class _MainAreaState extends ConsumerState<_MainArea>
   // 220msだと速すぎて動きが目に留まらなかったため、体感できる速さまで伸ばし、
   // イージングも付けて動き自体をはっきりさせる
   late final AnimationController _expandAnim = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 8000));
+      vsync: this, duration: const Duration(milliseconds: 10000));
   late final Animation<double> _expandCurve = CurvedAnimation(
       parent: _expandAnim,
       curve: Curves.easeOutCubic,
@@ -468,7 +468,7 @@ class _MainAreaState extends ConsumerState<_MainArea>
   // opacityの瞬間切替ではなくスライドアニメーションで駆動する
   late final AnimationController _dimAnim = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 8000),
+      duration: const Duration(milliseconds: 10000),
       value: widget.dimChrome ? 1.0 : 0.0);
   late final Animation<double> _dimCurve = CurvedAnimation(
       parent: _dimAnim,

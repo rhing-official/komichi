@@ -56,35 +56,37 @@ class PanelBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (!glass) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: borderRadius),
-        child: const SizedBox.expand(),
-      );
-    }
     final isDark = theme.brightness == Brightness.dark;
+    // glass/非glassでtint・borderは共通にする（動いている間だけ不透明度の
+    // 見え方が変わって浮いて見えないように）。差はBackdropFilterのブラーの
+    // 有無だけにする
     final tint = isDark
         ? Colors.white.withValues(alpha: 0.08)
         : Colors.white.withValues(alpha: 0.55);
     final borderColor = isDark
         ? Colors.white.withValues(alpha: 0.14)
         : Colors.white.withValues(alpha: 0.7);
+    final decoration = BoxDecoration(
+      color: tint,
+      borderRadius: borderRadius,
+      border: Border.all(color: borderColor, width: 1),
+      boxShadow: [
+        BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 4)),
+      ],
+    );
+    if (!glass) {
+      return DecoratedBox(
+        decoration: decoration,
+        child: const SizedBox.expand(),
+      );
+    }
     return BackdropFilter(
       filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: tint,
-          borderRadius: borderRadius,
-          border: Border.all(color: borderColor, width: 1),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
-                blurRadius: 20,
-                offset: const Offset(0, 4)),
-          ],
-        ),
+        decoration: decoration,
         child: const SizedBox.expand(),
       ),
     );

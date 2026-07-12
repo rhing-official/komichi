@@ -32,7 +32,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   // 200msだと速すぎて動きが目に留まらなかったため、体感できる速さまで伸ばし、
   // イージングも付けて動き自体をはっきりさせる
   late final AnimationController _menuAnim = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 8000));
+      vsync: this, duration: const Duration(milliseconds: 10000));
   late final Animation<double> _menuCurve = CurvedAnimation(
       parent: _menuAnim,
       curve: Curves.easeOutCubic,
