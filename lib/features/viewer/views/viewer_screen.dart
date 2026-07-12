@@ -5,11 +5,17 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/viewer_provider.dart';
 import '../../../core/providers/tab_provider.dart';
+import '../../../core/utils/platform_utils.dart';
+import '../../../core/widgets/mobile_nav_popup.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../settings/models/app_settings.dart';
 
 // app.dart側でサイドバーがこのメニューと重ならないよう高さを共有する
 const double kViewerBottomMenuHeight = 120;
+
+// モバイルでは、この下にナビゲーションポップアップの行を同じパネル内に
+// 追加で積む分の高さ（区切り線込み）
+const double _kMobileNavRowExtraHeight = kMobileNavPopupHeight + 8;
 
 class ViewerScreen extends ConsumerStatefulWidget {
   final String bookId;
@@ -178,44 +184,59 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
         child: Scaffold(
           backgroundColor: Colors.black,
           body: Stack(children: [
-            Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerSignal: (event) {
-                if (event is PointerScrollEvent) _handleZoom(event);
-              },
-              child: GestureDetector(
+            LayoutBuilder(builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              return Listener(
                 behavior: HitTestBehavior.opaque,
-                onTapUp: (_) {
-                  _focusNode.requestFocus();
-                  notifier.toggleUI();
+                onPointerSignal: (event) {
+                  if (event is PointerScrollEvent) _handleZoom(event);
                 },
-                child: SizedBox.expand(
-                  child: InteractiveViewer(
-                    transformationController: _transformationController,
-                    minScale: 1.0,
-                    maxScale: 10.0,
-                    panEnabled: true,
-                    scaleEnabled: false,
-                    child: Center(
-                        child: notifier.currentImageBytes != null
-                            ? Image.memory(notifier.currentImageBytes!,
-                                fit: BoxFit.contain,
-                                width: double.infinity,
-                                height: double.infinity,
-                                gaplessPlayback: true)
-                            : const CircularProgressIndicator(
-                                color: Colors.white24)),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  // 画面タップ3分割: 左1/3=前ページ・中央1/3=UI表示切替・
+                  // 右1/3=次ページ（ページめくり方向はpageDirection設定で反転）
+                  onTapUp: (details) {
+                    _focusNode.requestFocus();
+                    final dx = details.localPosition.dx;
+                    if (dx < width / 3) {
+                      isLeftToNext ? notifier.nextPage() : notifier.previousPage();
+                    } else if (dx > width * 2 / 3) {
+                      isLeftToNext ? notifier.previousPage() : notifier.nextPage();
+                    } else {
+                      notifier.toggleUI();
+                    }
+                  },
+                  child: SizedBox.expand(
+                    child: InteractiveViewer(
+                      transformationController: _transformationController,
+                      minScale: 1.0,
+                      maxScale: 10.0,
+                      panEnabled: true,
+                      scaleEnabled: false,
+                      child: Center(
+                          child: notifier.currentImageBytes != null
+                              ? Image.memory(notifier.currentImageBytes!,
+                                  fit: BoxFit.contain,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  gaplessPlayback: true)
+                              : const CircularProgressIndicator(
+                                  color: Colors.white24)),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            }),
             AnimatedBuilder(
               animation: _menuCurve,
               builder: (context, _) {
                 final t = _menuCurve.value;
                 final atRest = t == 0.0 || t == 1.0;
+                final slideDistance = kViewerBottomMenuHeight +
+                    (isMobilePlatform ? _kMobileNavRowExtraHeight : 0.0) +
+                    10;
                 return Positioned(
-                  bottom: -130 + 130 * t,
+                  bottom: -slideDistance + slideDistance * t,
                   left: 0,
                   right: 0,
                   child: _buildBottomMenu(settings, state, notifier,
@@ -287,13 +308,26 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
             icon: _bookNavIcon(isNext: !isLeftToNext),
             onPressed: () => notifier.switchBook(!isLeftToNext)),
       ]),
+      // モバイルでは、デスクトップのタブバー・サイドバー・パスバーの機能を
+      // 集約したナビゲーションポップアップの行を、別パネルとして重ねるのでは
+      // なくこのページ送りパネルの下段として同じガラス背景の中に統合する
+      // （2枚のガラスパネルが重なって視認性が悪くなるのを避けるため）
+      if (isMobilePlatform) ...[
+        const Divider(height: 8, color: Colors.white12),
+        const SizedBox(
+            height: kMobileNavPopupHeight,
+            child: MobileNavIconRow(iconColor: Colors.white)),
+      ],
     ]);
+
+    final panelHeight = kViewerBottomMenuHeight +
+        (isMobilePlatform ? _kMobileNavRowExtraHeight : 0.0);
 
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
         child: SizedBox(
-          height: kViewerBottomMenuHeight,
+          height: panelHeight,
           child: Stack(fit: StackFit.expand, children: [
             if (glass)
               BackdropFilter(

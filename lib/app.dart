@@ -7,15 +7,13 @@ import 'package:path/path.dart' as p;
 import 'features/library/models/shelf.dart';
 import 'core/utils/platform_utils.dart';
 import 'core/widgets/glass_panel.dart';
+import 'core/widgets/tab_content_builder.dart';
+import 'core/widgets/mobile_shell.dart';
 import 'core/providers/tab_provider.dart';
 import 'core/providers/sidebar_focus_provider.dart';
 import 'core/providers/sidebar_width_provider.dart';
-import 'features/library/views/home_placeholder_screen.dart';
-import 'features/library/views/favorites_screen.dart';
-import 'features/library/views/shelf_screen.dart';
 import 'features/library/widgets/bookshelf_sidebar.dart';
 import 'features/viewer/views/viewer_screen.dart';
-import 'features/settings/views/settings_screen.dart';
 import 'features/viewer/providers/viewer_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'features/settings/models/app_settings.dart';
@@ -220,6 +218,11 @@ class _TabShellState extends ConsumerState<TabShell>
 
   @override
   Widget build(BuildContext context) {
+    // モバイルはタブバー・サイドバー・パスバーを持たない専用シェルに丸ごと
+    // 委譲する。以降のチロム(パスバー等)の状態計算・アニメーションは
+    // デスクトップ専用のため、ここで早期リターンして無駄な計算を避ける
+    if (isMobilePlatform) return const MobileShell();
+
     final tabState = ref.watch(tabProvider);
     final notifier = ref.read(tabProvider.notifier);
     final currentTab = tabState.tabs[tabState.currentIndex];
@@ -528,19 +531,10 @@ class _MainAreaState extends ConsumerState<_MainArea>
 
     final stack = IndexedStack(
         index: widget.tabState.currentIndex,
-        children: widget.tabState.tabs.asMap().entries.map<Widget>((entry) {
-          final tab = entry.value;
-          final isActive = entry.key == widget.tabState.currentIndex;
-          if (tab.isSettings) return SettingsScreen(isActive: isActive);
-          if (tab.isFavorites) return FavoritesScreen(isActive: isActive);
-          if (tab.bookId != null) {
-            return ViewerScreen(bookId: tab.bookId!, isActive: isActive);
-          }
-          if (tab.shelfId != null) {
-            return ShelfScreen(shelfId: tab.shelfId!, isActive: isActive);
-          }
-          return HomePlaceholderScreen(isActive: isActive);
-        }).toList());
+        children: widget.tabState.tabs.asMap().entries
+            .map<Widget>((entry) => buildTabContent(
+                entry.value, entry.key == widget.tabState.currentIndex))
+            .toList());
 
     // ビューワーを開いている間、サイドバー・垂直タブ帯はSpace(dimChrome)で
     // 表示/非表示を切り替える。実際の不透明度・スライド位置は_dimAnimの

@@ -2,12 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
-import '../models/book.dart';
 import '../models/shelf.dart';
 import '../providers/library_provider.dart';
 import '../../../core/providers/tab_provider.dart';
 import '../../../core/providers/sidebar_focus_provider.dart';
-import '../../../core/utils/sort_utils.dart';
+import '../../../core/utils/library_search.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../settings/models/app_settings.dart';
 
@@ -48,35 +47,10 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
 
     final state = ref.watch(libraryProvider);
     final notifier = ref.read(libraryProvider.notifier);
-    final query = _searchQuery.trim().toLowerCase();
-    final isSearching = query.isNotEmpty;
-
-    final searchResults = isSearching
-        ? (state.books.where((b) => b.title.toLowerCase().contains(query)).toList()
-          ..sort((a, b) => SortUtils.compareNatural(a.title, b.title)))
-        : <Book>[];
-
-    final folderSearchResults = <(Shelf, String)>[];
-    if (isSearching) {
-      for (final shelf in state.shelves) {
-        final paths = <String>{};
-        for (final b
-            in state.books.where((b) => b.shelfId == shelf.id)) {
-          var dir = p.dirname(b.filePath);
-          while (dir != shelf.folderPath && p.isWithin(shelf.folderPath, dir)) {
-            paths.add(dir);
-            dir = p.dirname(dir);
-          }
-        }
-        for (final path in paths) {
-          if (p.basename(path).toLowerCase().contains(query)) {
-            folderSearchResults.add((shelf, path));
-          }
-        }
-      }
-      folderSearchResults.sort((a, b) =>
-          SortUtils.compareNatural(p.basename(a.$2), p.basename(b.$2)));
-    }
+    final isSearching = _searchQuery.trim().isNotEmpty;
+    final results = searchLibrary(state, _searchQuery);
+    final searchResults = results.books;
+    final folderSearchResults = results.folders;
 
     final favFolders = <(Shelf, String)>[
       for (final s in state.shelves)

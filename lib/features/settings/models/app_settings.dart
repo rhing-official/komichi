@@ -92,6 +92,18 @@ enum MiddleClickTabBehavior {
   stayOnCurrentTab,
 }
 
+// モバイル用ナビゲーションポップアップに並べる8アイコンのデフォルト順序
+const List<String> kDefaultMobileNavIconOrder = [
+  'back',
+  'forward',
+  'search',
+  'addTab',
+  'tabCount',
+  'favorites',
+  'settings',
+  'addFolder',
+];
+
 @HiveType(typeId: 1)
 class AppSettings {
   @HiveField(0, defaultValue: PageDirection.leftToNext)
@@ -128,6 +140,13 @@ class AppSettings {
   @HiveField(10, defaultValue: MiddleClickTabBehavior.switchToNewTab)
   final MiddleClickTabBehavior middleClickTabBehavior;
 
+  // ★追加：モバイル用ナビゲーションポップアップのアイコン表示順・非表示集合
+  @HiveField(13, defaultValue: kDefaultMobileNavIconOrder)
+  final List<String> mobileNavIconOrder;
+
+  @HiveField(14, defaultValue: <String>[])
+  final List<String> mobileNavHiddenIcons;
+
   AppSettings({
     this.pageDirection = PageDirection.leftToNext,
     this.theme = AppTheme.system,
@@ -139,6 +158,8 @@ class AppSettings {
     this.launchTabBehavior = LaunchTabBehavior.resumeLastBook,
     this.savedTabsJson,
     this.middleClickTabBehavior = MiddleClickTabBehavior.switchToNewTab,
+    this.mobileNavIconOrder = kDefaultMobileNavIconOrder,
+    this.mobileNavHiddenIcons = const <String>[],
   });
 
   AppSettings copyWith({
@@ -153,6 +174,8 @@ class AppSettings {
     LaunchTabBehavior? launchTabBehavior,
     String? savedTabsJson,
     MiddleClickTabBehavior? middleClickTabBehavior,
+    List<String>? mobileNavIconOrder,
+    List<String>? mobileNavHiddenIcons,
   }) {
     return AppSettings(
       pageDirection: pageDirection ?? this.pageDirection,
@@ -168,6 +191,8 @@ class AppSettings {
       savedTabsJson: savedTabsJson ?? this.savedTabsJson,
       middleClickTabBehavior:
           middleClickTabBehavior ?? this.middleClickTabBehavior,
+      mobileNavIconOrder: mobileNavIconOrder ?? this.mobileNavIconOrder,
+      mobileNavHiddenIcons: mobileNavHiddenIcons ?? this.mobileNavHiddenIcons,
     );
   }
 }
