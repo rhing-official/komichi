@@ -20,6 +20,25 @@ class FavoritesScreen extends ConsumerStatefulWidget {
 class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   final FocusNode _focusNode = FocusNode();
 
+  // フォーカスはタブがアクティブになった時と画面内クリック時のみ取得する。
+  // buildのたびにrequestFocusすると、サイドバーの検索欄など他所にフォーカスが
+  // ある状態でも、無関係な再ビルドのたびにフォーカスを奪ってしまう
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNode.requestFocus();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant FavoritesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) _focusNode.requestFocus();
+  }
+
   @override
   void dispose() {
     _focusNode.dispose();
@@ -28,12 +47,12 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.isActive) _focusNode.requestFocus();
     final state = ref.watch(libraryProvider);
     final favFolders = <(Shelf, String)>[
       for (final s in state.shelves)
         for (final path in s.favoriteFolders) (s, path),
-    ]..sort((a, b) => SortUtils.compareNatural(p.basename(a.$2), p.basename(b.$2)));
+    ]..sort(
+        (a, b) => SortUtils.compareNatural(p.basename(a.$2), p.basename(b.$2)));
     final favBooks = state.books.where((b) => b.isFavorite).toList()
       ..sort((a, b) => SortUtils.compareNatural(a.title, b.title));
 
@@ -67,7 +86,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                 final (shelf, path) = favFolders[index];
                 return _FavoriteFolderCard(shelf: shelf, path: path);
               }
-              return _FavoriteBookCard(book: favBooks[index - favFolders.length]);
+              return _FavoriteBookCard(
+                  book: favBooks[index - favFolders.length]);
             },
           );
 
@@ -75,7 +95,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: (node, event) => KeyEventResult.ignored,
-      child: content,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => _focusNode.requestFocus(),
+        child: content,
+      ),
     );
   }
 }
@@ -93,8 +117,7 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
   bool _hover = false;
 
   Future<void> _showMenu(Offset globalPosition, List<String> segments) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -190,7 +213,8 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
                                 colorBlendMode: i < thumbBooks.length - 1
                                     ? BlendMode.darken
                                     : null)
-                            : Container(color: colorScheme.surfaceContainerHigh),
+                            : Container(
+                                color: colorScheme.surfaceContainerHigh),
                       );
                     }),
                   if (booksInFolder.isNotEmpty)
@@ -248,8 +272,7 @@ class _FavoriteBookCardState extends ConsumerState<_FavoriteBookCard> {
   bool _hover = false;
 
   Future<void> _showMenu(Offset globalPosition) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(

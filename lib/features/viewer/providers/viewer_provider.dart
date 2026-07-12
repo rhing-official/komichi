@@ -57,13 +57,20 @@ class ViewerNotifier extends StateNotifier<ReadState> {
         });
         total = _sortedImages!.length;
       }
+      // 前回の続きから再開する（未読/初回はlastPage=0なので先頭から）
+      final resumePage = total > 0 ? book.lastPage.clamp(0, total - 1) : 0;
       state = state.copyWith(
           title: book.title,
           filePath: book.filePath,
           format: book.format,
           totalPages: total,
-          currentPage: 0,
+          currentPage: resumePage,
           isLoading: false);
+      // totalPagesはビューアでしか算出できないため、ここで初めてBookへ保存する。
+      // これを保存しないと本棚のフェーダーが常に「進捗0%」表示になってしまう
+      ref.read(libraryProvider.notifier).updateReadProgress(
+          bookId, resumePage, book.isFinished,
+          totalPages: total);
       _loadCurrentImage(); // 初回ロード
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '読み込み失敗');

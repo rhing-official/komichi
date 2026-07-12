@@ -16,9 +16,27 @@ class HomePlaceholderScreen extends ConsumerStatefulWidget {
       _HomePlaceholderScreenState();
 }
 
-class _HomePlaceholderScreenState
-    extends ConsumerState<HomePlaceholderScreen> {
+class _HomePlaceholderScreenState extends ConsumerState<HomePlaceholderScreen> {
   final FocusNode _focusNode = FocusNode();
+
+  // フォーカスはタブがアクティブになった時と画面内クリック時のみ取得する。
+  // buildのたびにrequestFocusすると、サイドバーの検索欄など他所にフォーカスが
+  // ある状態でも、無関係な再ビルドのたびにフォーカスを奪ってしまう
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNode.requestFocus();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePlaceholderScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) _focusNode.requestFocus();
+  }
 
   @override
   void dispose() {
@@ -28,7 +46,6 @@ class _HomePlaceholderScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (widget.isActive) _focusNode.requestFocus();
     final state = ref.watch(libraryProvider);
     final shelves = [...state.shelves]
       ..sort((a, b) => SortUtils.compareNatural(a.name, b.name));
@@ -46,34 +63,40 @@ class _HomePlaceholderScreenState
         }
         return KeyEventResult.ignored;
       },
-      child: shelves.isEmpty
-          ? Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.menu_book,
-                    size: 64,
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.4)),
-                const SizedBox(height: 16),
-                Text('まだ本棚が追加されていません',
-                    style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.6))),
-              ]),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.all(24),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 220,
-                  childAspectRatio: 0.7,
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 20),
-              itemCount: shelves.length,
-              itemBuilder: (context, index) => _ShelfCard(
-                  shelf: shelves[index], index: index, allIds: allIds),
-            ),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => _focusNode.requestFocus(),
+        child: shelves.isEmpty
+            ? Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.menu_book,
+                      size: 64,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.4)),
+                  const SizedBox(height: 16),
+                  Text('まだ本棚が追加されていません',
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6))),
+                ]),
+              )
+            : GridView.builder(
+                padding: const EdgeInsets.all(24),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 220,
+                    childAspectRatio: 0.7,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20),
+                itemCount: shelves.length,
+                itemBuilder: (context, index) => _ShelfCard(
+                    shelf: shelves[index], index: index, allIds: allIds),
+              ),
+      ),
     );
   }
 }
@@ -92,8 +115,7 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
   bool _hover = false;
 
   Future<void> _showShelfMenu(Offset globalPosition) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -101,8 +123,7 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
       items: [
         PopupMenuItem(
             value: 'favorite',
-            child:
-                Text(widget.shelf.isFavorite ? 'お気に入り解除' : 'お気に入りに追加')),
+            child: Text(widget.shelf.isFavorite ? 'お気に入り解除' : 'お気に入りに追加')),
         const PopupMenuItem(value: 'newtab', child: Text('別タブで開く')),
         const PopupMenuItem(value: 'delete', child: Text('削除')),
       ],
@@ -173,8 +194,7 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
                         .read(selectionProvider.notifier)
                         .selectRange(widget.index, widget.allIds);
                   } else {
-                    ref.read(tabProvider.notifier).navigateTo(
-                        widget.shelf.id,
+                    ref.read(tabProvider.notifier).navigateTo(widget.shelf.id,
                         path: widget.shelf.folderPath,
                         title: widget.shelf.name,
                         segments: ['トップ', widget.shelf.name]);
@@ -203,7 +223,8 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
                                 colorBlendMode: i < thumbBooks.length - 1
                                     ? BlendMode.darken
                                     : null)
-                            : Container(color: colorScheme.surfaceContainerHigh),
+                            : Container(
+                                color: colorScheme.surfaceContainerHigh),
                       );
                     }),
                   if (booksInShelf.isNotEmpty)

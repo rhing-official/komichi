@@ -71,6 +71,17 @@ enum OuterEdgeElement {
   sidebar,
 }
 
+// ★追加：起動時にタブの状態をどうするか（resumeLastBook=前回読んでいた
+// 書籍のビューワーを自動で開く、alwaysLibrary=常に本棚タブから開始）。
+// どちらを選んでも読書履歴（Book.lastPage等）自体はリセットされない
+@HiveType(typeId: 11)
+enum LaunchTabBehavior {
+  @HiveField(0)
+  resumeLastBook,
+  @HiveField(1)
+  alwaysLibrary,
+}
+
 @HiveType(typeId: 1)
 class AppSettings {
   @HiveField(0, defaultValue: PageDirection.leftToNext)
@@ -95,6 +106,15 @@ class AppSettings {
   @HiveField(7, defaultValue: OuterEdgeElement.verticalTabs)
   final OuterEdgeElement outerEdgeElement;
 
+  @HiveField(8, defaultValue: LaunchTabBehavior.resumeLastBook)
+  final LaunchTabBehavior launchTabBehavior;
+
+  // ★終了時に開いていたタブ全体（本棚・書籍・設定・お気に入りタブと現在の
+  // 選択状態）をJSON文字列として保存し、次回起動時に「前回のタブを復元」で
+  // 使う。ネストしたリスト/マップを含むためHiveの独自型ではなくJSONで保持する
+  @HiveField(9)
+  final String? savedTabsJson;
+
   AppSettings({
     this.pageDirection = PageDirection.leftToNext,
     this.theme = AppTheme.system,
@@ -103,6 +123,8 @@ class AppSettings {
     this.tabBarPosition = TabBarPosition.top,
     this.fullscreenBehavior = FullscreenBehavior.onViewerOnly,
     this.outerEdgeElement = OuterEdgeElement.verticalTabs,
+    this.launchTabBehavior = LaunchTabBehavior.resumeLastBook,
+    this.savedTabsJson,
   });
 
   AppSettings copyWith({
@@ -114,6 +136,8 @@ class AppSettings {
     TabBarPosition? tabBarPosition,
     FullscreenBehavior? fullscreenBehavior,
     OuterEdgeElement? outerEdgeElement,
+    LaunchTabBehavior? launchTabBehavior,
+    String? savedTabsJson,
   }) {
     return AppSettings(
       pageDirection: pageDirection ?? this.pageDirection,
@@ -125,6 +149,8 @@ class AppSettings {
       tabBarPosition: tabBarPosition ?? this.tabBarPosition,
       fullscreenBehavior: fullscreenBehavior ?? this.fullscreenBehavior,
       outerEdgeElement: outerEdgeElement ?? this.outerEdgeElement,
+      launchTabBehavior: launchTabBehavior ?? this.launchTabBehavior,
+      savedTabsJson: savedTabsJson ?? this.savedTabsJson,
     );
   }
 }

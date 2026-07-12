@@ -41,6 +41,8 @@ void main() async {
       Hive.registerAdapter(FullscreenBehaviorAdapter());
     if (!Hive.isAdapterRegistered(10))
       Hive.registerAdapter(OuterEdgeElementAdapter());
+    if (!Hive.isAdapterRegistered(11))
+      Hive.registerAdapter(LaunchTabBehaviorAdapter());
 
     // ★ ここで全てのBoxが開くのを確実に待つ（これがエラーの解決策）
     await Future.wait([

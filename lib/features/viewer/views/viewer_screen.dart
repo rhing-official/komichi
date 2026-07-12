@@ -23,6 +23,25 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
       TransformationController();
   final FocusNode _focusNode = FocusNode();
 
+  // フォーカスはタブがアクティブになった時と画面タップ時(onTapUp)のみ取得する。
+  // buildのたびにrequestFocusすると、サイドバーの検索欄など他所にフォーカスが
+  // ある状態でも、無関係な再ビルドのたびにフォーカスを奪ってしまう
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNode.requestFocus();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ViewerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) _focusNode.requestFocus();
+  }
+
   void _handleZoom(PointerScrollEvent event) {
     final double zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
     final double currentScale =
@@ -64,7 +83,6 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
 
     if (state.isLoading)
       return const Center(child: CircularProgressIndicator());
-    if (widget.isActive) _focusNode.requestFocus();
 
     return Focus(
       focusNode: _focusNode,
@@ -133,9 +151,8 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
         return KeyEventResult.ignored;
       },
       child: MouseRegion(
-        cursor: state.showUI
-            ? SystemMouseCursors.basic
-            : SystemMouseCursors.none,
+        cursor:
+            state.showUI ? SystemMouseCursors.basic : SystemMouseCursors.none,
         child: Scaffold(
           backgroundColor: Colors.black,
           body: Stack(children: [
@@ -258,5 +275,4 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
       size: 32,
     );
   }
-
 }

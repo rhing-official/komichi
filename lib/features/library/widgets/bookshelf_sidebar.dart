@@ -87,7 +87,7 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
 
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: colorScheme.surfaceContainerHighest,
+      type: MaterialType.transparency,
       child: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
@@ -104,7 +104,8 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
                       )
                     : null,
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surface,
+                fillColor:
+                    Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
                     borderSide: BorderSide.none),

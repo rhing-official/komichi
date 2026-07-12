@@ -48,6 +48,7 @@ modules:
         tag: 4.2.2
 
   # 3. アプリ本体
+  - name: komichi
     buildsystem: simple
     build-commands:
       # Flutterのリリースバイナリを /app/bin に配置

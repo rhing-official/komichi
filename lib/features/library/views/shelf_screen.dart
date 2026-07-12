@@ -13,8 +13,7 @@ import '../../../core/utils/sort_utils.dart';
 class ShelfScreen extends ConsumerStatefulWidget {
   final String shelfId;
   final bool isActive;
-  const ShelfScreen(
-      {super.key, required this.shelfId, this.isActive = true});
+  const ShelfScreen({super.key, required this.shelfId, this.isActive = true});
   @override
   ConsumerState<ShelfScreen> createState() => _ShelfScreenState();
 }
@@ -22,6 +21,25 @@ class ShelfScreen extends ConsumerStatefulWidget {
 class _ShelfScreenState extends ConsumerState<ShelfScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+
+  // フォーカスはタブがアクティブになった時と画面内クリック時のみ取得する。
+  // buildのたびにrequestFocusすると、サイドバーの検索欄など他所にフォーカスが
+  // ある状態でも、無関係な再ビルドのたびにフォーカスを奪ってしまう
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNode.requestFocus();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ShelfScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) _focusNode.requestFocus();
+  }
 
   @override
   void dispose() {
@@ -41,7 +59,6 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.isActive) _focusNode.requestFocus();
     final state = ref.watch(libraryProvider);
     final tab =
         ref.watch(tabProvider).tabs[ref.watch(tabProvider).currentIndex];
@@ -99,29 +116,33 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
         }
         return KeyEventResult.ignored;
       },
-      child: Scaffold(
-        body: GridView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.all(24),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 220,
-              childAspectRatio: 0.7,
-              crossAxisSpacing: 20,
-              mainAxisSpacing: 20),
-          itemCount: subFolders.length + currentBooks.length,
-          itemBuilder: (context, index) {
-            if (index < subFolders.length) {
-              return _FolderItem(
-                  path: subFolders[index],
-                  shelfId: widget.shelfId,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => _focusNode.requestFocus(),
+        child: Scaffold(
+          body: GridView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(24),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 220,
+                childAspectRatio: 0.7,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20),
+            itemCount: subFolders.length + currentBooks.length,
+            itemBuilder: (context, index) {
+              if (index < subFolders.length) {
+                return _FolderItem(
+                    path: subFolders[index],
+                    shelfId: widget.shelfId,
+                    index: index,
+                    allIds: allIds);
+              }
+              return _BookItem(
+                  book: currentBooks[index - subFolders.length],
                   index: index,
                   allIds: allIds);
-            }
-            return _BookItem(
-                book: currentBooks[index - subFolders.length],
-                index: index,
-                allIds: allIds);
-          },
+            },
+          ),
         ),
       ),
     );
@@ -144,11 +165,12 @@ Future<bool> _showBatchMenuIfApplicable({
   }
   final libState = ref.read(libraryProvider);
   final ids = selection.selectedIds;
-  final selectedBooks = libState.books.where((b) => ids.contains(b.id)).toList();
+  final selectedBooks =
+      libState.books.where((b) => ids.contains(b.id)).toList();
   final selectedFolderPaths =
       ids.where((id) => !selectedBooks.any((b) => b.id == id)).toList();
-  final shelf = libState.shelves.firstWhere((s) => s.id == shelfId,
-      orElse: () => libState.shelves.first);
+  final shelf = libState.shelves
+      .firstWhere((s) => s.id == shelfId, orElse: () => libState.shelves.first);
   final allFav = selectedBooks.every((b) => b.isFavorite) &&
       selectedFolderPaths.every((path) => shelf.favoriteFolders.contains(path));
 
@@ -159,8 +181,7 @@ Future<bool> _showBatchMenuIfApplicable({
         globalPosition & const Size(1, 1), Offset.zero & overlay.size),
     items: [
       PopupMenuItem(
-          value: 'favorite',
-          child: Text(allFav ? 'お気に入り解除' : 'お気に入りに追加')),
+          value: 'favorite', child: Text(allFav ? 'お気に入り解除' : 'お気に入りに追加')),
       const PopupMenuItem(value: 'delete', child: Text('削除')),
     ],
   );
@@ -218,12 +239,14 @@ class _FolderItemState extends ConsumerState<_FolderItem> {
       ),
     );
     if (confirm == true) {
-      ref.read(libraryProvider.notifier).removeFolder(widget.shelfId, widget.path);
+      ref
+          .read(libraryProvider.notifier)
+          .removeFolder(widget.shelfId, widget.path);
     }
   }
 
-  Future<void> _showFolderMenu(
-      Offset globalPosition, String fName, List<String> segments, bool isAnyFavorite) async {
+  Future<void> _showFolderMenu(Offset globalPosition, String fName,
+      List<String> segments, bool isAnyFavorite) async {
     if (await _showBatchMenuIfApplicable(
         context: context,
         ref: ref,
@@ -233,8 +256,7 @@ class _FolderItemState extends ConsumerState<_FolderItem> {
       return;
     }
     if (!mounted) return;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -281,8 +303,7 @@ class _FolderItemState extends ConsumerState<_FolderItem> {
         b.shelfId == widget.shelfId &&
         (b.filePath == widget.path ||
             b.filePath.startsWith(widget.path + p.separator)));
-    final currentShelf = state.shelves.firstWhere(
-        (s) => s.id == widget.shelfId,
+    final currentShelf = state.shelves.firstWhere((s) => s.id == widget.shelfId,
         orElse: () => state.shelves.first);
     final isAnyFavorite = currentShelf.favoriteFolders.contains(widget.path);
 
@@ -312,88 +333,95 @@ class _FolderItemState extends ConsumerState<_FolderItem> {
             },
             child: GestureDetector(
               onSecondaryTapDown: (details) => _showFolderMenu(
-                  details.globalPosition, fName, [...tab.segments, fName], isAnyFavorite),
+                  details.globalPosition,
+                  fName,
+                  [...tab.segments, fName],
+                  isAnyFavorite),
               onLongPressStart: (details) => _showFolderMenu(
-                  details.globalPosition, fName, [...tab.segments, fName], isAnyFavorite),
+                  details.globalPosition,
+                  fName,
+                  [...tab.segments, fName],
+                  isAnyFavorite),
               child: InkWell(
-            onTap: () {
-              if (HardwareKeyboard.instance.isControlPressed) {
-                ref
-                    .read(selectionProvider.notifier)
-                    .toggle(widget.path, widget.index);
-              } else if (HardwareKeyboard.instance.isShiftPressed) {
-                ref
-                    .read(selectionProvider.notifier)
-                    .selectRange(widget.index, widget.allIds);
-              } else {
-                ref.read(tabProvider.notifier).navigateTo(widget.shelfId,
-                    path: widget.path,
-                    title: fName,
-                    segments: [...tab.segments, fName]);
-              }
-            },
-            child: Stack(children: [
-              if (thumbBooks.isEmpty)
-                Center(
-                    child: Icon(Icons.folder,
-                        size: 64, color: colorScheme.onSurfaceVariant))
-              else
-                ...thumbBooks.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final b = entry.value;
-                  return Positioned(
-                    top: 0,
-                    bottom: 0,
-                    left: i * 8.0,
-                    right: (thumbBooks.length - 1 - i) * 8.0,
-                    child: b.thumbnailPath != null
-                        ? Image.file(File(b.thumbnailPath!),
-                            fit: BoxFit.cover,
-                            color: i < thumbBooks.length - 1
-                                ? Colors.black.withOpacity(0.3)
-                                : null,
-                            colorBlendMode: i < thumbBooks.length - 1
-                                ? BlendMode.darken
-                                : null)
-                        : Container(color: colorScheme.surfaceContainerHigh),
-                  );
-                }),
-              if (booksInFolder.isNotEmpty)
-                Positioned(
-                  bottom: 8,
-                  left: (thumbBooks.length - 1) * 8.0 + 8.0,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(4),
+                onTap: () {
+                  if (HardwareKeyboard.instance.isControlPressed) {
+                    ref
+                        .read(selectionProvider.notifier)
+                        .toggle(widget.path, widget.index);
+                  } else if (HardwareKeyboard.instance.isShiftPressed) {
+                    ref
+                        .read(selectionProvider.notifier)
+                        .selectRange(widget.index, widget.allIds);
+                  } else {
+                    ref.read(tabProvider.notifier).navigateTo(widget.shelfId,
+                        path: widget.path,
+                        title: fName,
+                        segments: [...tab.segments, fName]);
+                  }
+                },
+                child: Stack(children: [
+                  if (thumbBooks.isEmpty)
+                    Center(
+                        child: Icon(Icons.folder,
+                            size: 64, color: colorScheme.onSurfaceVariant))
+                  else
+                    ...thumbBooks.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final b = entry.value;
+                      return Positioned(
+                        top: 0,
+                        bottom: 0,
+                        left: i * 8.0,
+                        right: (thumbBooks.length - 1 - i) * 8.0,
+                        child: b.thumbnailPath != null
+                            ? Image.file(File(b.thumbnailPath!),
+                                fit: BoxFit.cover,
+                                color: i < thumbBooks.length - 1
+                                    ? Colors.black.withOpacity(0.3)
+                                    : null,
+                                colorBlendMode: i < thumbBooks.length - 1
+                                    ? BlendMode.darken
+                                    : null)
+                            : Container(
+                                color: colorScheme.surfaceContainerHigh),
+                      );
+                    }),
+                  if (booksInFolder.isNotEmpty)
+                    Positioned(
+                      bottom: 8,
+                      left: (thumbBooks.length - 1) * 8.0 + 8.0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${booksInFolder.length} 個のファイル',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      '${booksInFolder.length} 個のファイル',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              if (_hover || isChecked)
-                Positioned(
-                    top: 4,
-                    left: 4,
-                    child: Checkbox(
-                        value: isChecked,
-                        onChanged: (_) => ref
-                            .read(selectionProvider.notifier)
-                            .toggle(widget.path, widget.index))),
-              if (isAnyFavorite)
-                const Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Icon(Icons.star, color: Colors.amber, size: 18)),
-            ]),
-            ),
+                  if (_hover || isChecked)
+                    Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Checkbox(
+                            value: isChecked,
+                            onChanged: (_) => ref
+                                .read(selectionProvider.notifier)
+                                .toggle(widget.path, widget.index))),
+                  if (isAnyFavorite)
+                    const Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Icon(Icons.star, color: Colors.amber, size: 18)),
+                ]),
+              ),
             ),
           ),
         )),
@@ -429,7 +457,8 @@ class _BookItem extends ConsumerStatefulWidget {
 class _BookItemState extends ConsumerState<_BookItem> {
   bool _hover = false;
 
-  Future<void> _showBookMenu(Offset globalPosition, List<String> segments) async {
+  Future<void> _showBookMenu(
+      Offset globalPosition, List<String> segments) async {
     if (await _showBatchMenuIfApplicable(
         context: context,
         ref: ref,
@@ -439,8 +468,7 @@ class _BookItemState extends ConsumerState<_BookItem> {
       return;
     }
     if (!mounted) return;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(

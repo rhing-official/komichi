@@ -33,13 +33,17 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       outerEdgeElement: fields[7] == null
           ? OuterEdgeElement.verticalTabs
           : fields[7] as OuterEdgeElement,
+      launchTabBehavior: fields[8] == null
+          ? LaunchTabBehavior.resumeLastBook
+          : fields[8] as LaunchTabBehavior,
+      savedTabsJson: fields[9] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.pageDirection)
       ..writeByte(2)
@@ -53,7 +57,11 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(6)
       ..write(obj.fullscreenBehavior)
       ..writeByte(7)
-      ..write(obj.outerEdgeElement);
+      ..write(obj.outerEdgeElement)
+      ..writeByte(8)
+      ..write(obj.launchTabBehavior)
+      ..writeByte(9)
+      ..write(obj.savedTabsJson);
   }
 
   @override
@@ -346,6 +354,45 @@ class OuterEdgeElementAdapter extends TypeAdapter<OuterEdgeElement> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is OuterEdgeElementAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class LaunchTabBehaviorAdapter extends TypeAdapter<LaunchTabBehavior> {
+  @override
+  final int typeId = 11;
+
+  @override
+  LaunchTabBehavior read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return LaunchTabBehavior.resumeLastBook;
+      case 1:
+        return LaunchTabBehavior.alwaysLibrary;
+      default:
+        return LaunchTabBehavior.resumeLastBook;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, LaunchTabBehavior obj) {
+    switch (obj) {
+      case LaunchTabBehavior.resumeLastBook:
+        writer.writeByte(0);
+        break;
+      case LaunchTabBehavior.alwaysLibrary:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LaunchTabBehaviorAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

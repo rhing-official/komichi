@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -82,6 +83,11 @@ class _TabShellState extends ConsumerState<TabShell> {
   @override
   void initState() {
     super.initState();
+    // アプリ全体のショートカットはフォーカスツリー(Focus.onKeyEvent)ではなく
+    // グローバルハンドラで処理する。フォーカスツリー経由だと、フォーカス中の
+    // ウィジェットが破棄されてフォーカスがルートに落ちた際にキーイベントが
+    // 届かなくなり、ショートカットが全滅するため
+    HardwareKeyboard.instance.addHandler(_onGlobalKey);
     // 起動直後の全画面化。ref.listen(tabProvider,...)は状態の「変化」にしか
     // 反応しないため、起動時点で既に書籍が開いている（前回終了時の書籍を
     // 自動再開した）場合や「常に全画面」設定の場合はここで明示的に適用する
@@ -99,8 +105,86 @@ class _TabShellState extends ConsumerState<TabShell> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onGlobalKey);
     _focusNode.dispose();
     super.dispose();
+  }
+
+  bool _onGlobalKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final key = event.logicalKey;
+    final isCtrl = HardwareKeyboard.instance.isControlPressed;
+    final isAlt = HardwareKeyboard.instance.isAltPressed;
+    final isShift = HardwareKeyboard.instance.isShiftPressed;
+    final notifier = ref.read(tabProvider.notifier);
+    final tabState = ref.read(tabProvider);
+
+    if (isCtrl && key == LogicalKeyboardKey.tab) {
+      isShift ? notifier.previousTab() : notifier.nextTab();
+      return true;
+    }
+
+    if (isAlt) {
+      if (key == LogicalKeyboardKey.arrowLeft) {
+        notifier.undo();
+        return true;
+      }
+      if (key == LogicalKeyboardKey.arrowRight) {
+        notifier.redo();
+        return true;
+      }
+    }
+
+    // マウスボタンやブラウザキーへの対応
+    if (key == LogicalKeyboardKey.browserBack ||
+        key == LogicalKeyboardKey.goBack) {
+      notifier.undo();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.browserForward) {
+      notifier.redo();
+      return true;
+    }
+
+    if (isCtrl) {
+      if (key == LogicalKeyboardKey.keyI) {
+        notifier.openSettings();
+        return true;
+      }
+      if (key == LogicalKeyboardKey.keyW) {
+        notifier.closeTab(tabState.currentIndex);
+        return true;
+      }
+      if (key == LogicalKeyboardKey.keyF) {
+        notifier.openFavorites();
+        return true;
+      }
+      if (key == LogicalKeyboardKey.keyS) {
+        ref.read(sidebarFocusRequestProvider.notifier).state++;
+        return true;
+      }
+      if (key == LogicalKeyboardKey.keyT) {
+        notifier.addLibraryTab();
+        return true;
+      }
+    }
+    if (key == LogicalKeyboardKey.f5) {
+      _syncFiles();
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _syncFiles() async {
+    debugPrint('[Sync] F5が押されました');
+    final result = await ref.read(libraryProvider.notifier).syncAll();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(result.added == 0 && result.removed == 0
+          ? '変更はありませんでした'
+          : '更新しました（追加${result.added}件 / 削除${result.removed}件）'),
+      duration: const Duration(seconds: 2),
+    ));
   }
 
   @override
@@ -159,76 +243,21 @@ class _TabShellState extends ConsumerState<TabShell> {
           notifier.redo();
         }
       },
+      // アプリ全体のショートカットは_onGlobalKey（HardwareKeyboardハンドラ）で
+      // 処理する。このFocusはフォーカススコープの起点としてのみ残している
       child: Focus(
         focusNode: _focusNode,
         autofocus: true,
-        onKeyEvent: (node, event) {
-          if (event is! KeyDownEvent) return KeyEventResult.ignored;
-          final key = event.logicalKey;
-          final isCtrl = HardwareKeyboard.instance.isControlPressed;
-          final isAlt = HardwareKeyboard.instance.isAltPressed;
-          final isShift = HardwareKeyboard.instance.isShiftPressed;
-
-          // ★ ビューアにフォーカスがあっても、Ctrl+Tabなどはここで強制的に拾う
-          if (isCtrl && key == LogicalKeyboardKey.tab) {
-            isShift ? notifier.previousTab() : notifier.nextTab();
-            return KeyEventResult.handled;
-          }
-
-          if (isAlt) {
-            if (key == LogicalKeyboardKey.arrowLeft) {
-              notifier.undo();
-              return KeyEventResult.handled;
-            }
-            if (key == LogicalKeyboardKey.arrowRight) {
-              notifier.redo();
-              return KeyEventResult.handled;
-            }
-          }
-
-          // マウスボタンやブラウザキーへの対応
-          if (key == LogicalKeyboardKey.browserBack ||
-              key == LogicalKeyboardKey.goBack) {
-            notifier.undo();
-            return KeyEventResult.handled;
-          }
-          if (key == LogicalKeyboardKey.browserForward) {
-            notifier.redo();
-            return KeyEventResult.handled;
-          }
-
-          if (isCtrl) {
-            if (key == LogicalKeyboardKey.keyI) {
-              notifier.openSettings();
-              return KeyEventResult.handled;
-            }
-            if (key == LogicalKeyboardKey.keyW) {
-              notifier.closeTab(tabState.currentIndex);
-              return KeyEventResult.handled;
-            }
-            if (key == LogicalKeyboardKey.keyF) {
-              ref.read(sidebarFocusRequestProvider.notifier).state++;
-              return KeyEventResult.handled;
-            }
-            if (key == LogicalKeyboardKey.keyT) {
-              notifier.addLibraryTab();
-              return KeyEventResult.handled;
-            }
-          }
-          if (key == LogicalKeyboardKey.f5) {
-            ref.read(libraryProvider.notifier).syncAll();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
         child: Scaffold(
           appBar: isBookOpen
               ? null
               : PreferredSize(
                   preferredSize: Size.fromHeight(chromeBarHeight),
-                  child: isVerticalTabs
-                      ? const _PathBar(showWindowControls: true)
-                      : _buildChromeBar(tabState, notifier, colorScheme),
+                  child: _GlassPanel(
+                    child: isVerticalTabs
+                        ? const _PathBar(showWindowControls: true)
+                        : _buildChromeBar(tabState, notifier, colorScheme),
+                  ),
                 ),
           body: isBookOpen
               ? Stack(children: [
@@ -251,9 +280,14 @@ class _TabShellState extends ConsumerState<TabShell> {
                         opacity: dimChrome ? 0.85 : 0.0,
                         child: SizedBox(
                             height: chromeBarHeight,
-                            child: isVerticalTabs
-                                ? const _PathBar(showWindowControls: true)
-                                : _buildChromeBar(tabState, notifier, colorScheme)),
+                            child: _GlassPanel(
+                              borderRadius: const BorderRadius.vertical(
+                                  bottom: Radius.circular(18)),
+                              child: isVerticalTabs
+                                  ? const _PathBar(showWindowControls: true)
+                                  : _buildChromeBar(
+                                      tabState, notifier, colorScheme),
+                            )),
                       ),
                     ),
                   ),
@@ -275,7 +309,7 @@ class _TabShellState extends ConsumerState<TabShell> {
     return Column(children: [
       AppBar(
         toolbarHeight: 38,
-        backgroundColor: colorScheme.surfaceContainerHigh,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 0,
         title: GestureDetector(
@@ -361,15 +395,137 @@ const double _kPathBarHeight = 34;
 // 垂直タブ使用時、サイドバーよりも外側（画面端側）に表示するタブ帯の幅
 const double _kVerticalTabWidth = 200;
 
-class _MainAreaState extends ConsumerState<_MainArea> {
+// Apple Liquid Glass 風のすりガラス背景。裏の内容をぼかしつつ半透明の色味を
+// 重ね、外側の角を丸め、上端にハイライトの縁取りを入れることでガラスの
+// 質感を表現する。中身（BookshelfSidebar等）は自身の背景を透明にしておくこと
+class _GlassPanel extends StatelessWidget {
+  final Widget child;
+  final BorderRadius borderRadius;
+  const _GlassPanel({required this.child, this.borderRadius = BorderRadius.zero});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tint = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.55);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.14)
+        : Colors.white.withValues(alpha: 0.7);
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: tint,
+            borderRadius: borderRadius,
+            border: Border.all(color: borderColor, width: 1),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4)),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+// サイドバー・垂直タブ用の背景専用レイヤー（childを持たない）。
+// ガラス効果(BackdropFilter)はスライド中の毎フレーム再計算が非常に重いため、
+// スライド中はブラー無しの不透明背景に切り替える。切り替えはこのウィジェットの
+// 「内部」で行うことが重要：型の異なるラッパー（_GlassPanel等）でコンテンツを
+// 包み替えると、コンテンツのサブツリーごと再マウントされて状態（サイドバーの
+// 検索欄のFocusNode等）が破棄されてしまう
+class _PanelBackground extends StatelessWidget {
+  final bool glass;
+  final BorderRadius borderRadius;
+  const _PanelBackground(
+      {required this.glass, this.borderRadius = BorderRadius.zero});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (!glass) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: borderRadius),
+        child: const SizedBox.expand(),
+      );
+    }
+    final isDark = theme.brightness == Brightness.dark;
+    final tint = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.55);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.14)
+        : Colors.white.withValues(alpha: 0.7);
+    return BackdropFilter(
+      filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: tint,
+          borderRadius: borderRadius,
+          border: Border.all(color: borderColor, width: 1),
+        ),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+class _MainAreaState extends ConsumerState<_MainArea>
+    with SingleTickerProviderStateMixin {
   bool _hover = false;
-  bool _resizing = false;
   bool _keyboardExpanded = false;
+  late final AnimationController _expandAnim = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 220));
+
+  // リサイズ中フラグはガラス⇔軽量背景の切り替えに使うが、リサイズの開始/終了は
+  // アニメーションのティックを伴わない（既に全展開状態のまま起きる）ため、
+  // ValueNotifierにしてAnimatedBuilderのListenable.mergeで監視する
+  final ValueNotifier<bool> _resizingN = ValueNotifier(false);
+
+  void _syncExpandAnim() {
+    final next = _hover || _resizingN.value || _keyboardExpanded;
+    next ? _expandAnim.forward() : _expandAnim.reverse();
+  }
+
+  // ★setStateは呼ばない。ホバーのたびにbuild全体（IndexedStack内の全タブ画面）が
+  // 再ビルドされると、その巨大な1フレームが時間ベースの220msスライドをほぼ
+  // 食い尽くして「アニメーション無しで切り替わる」ように見えるため、
+  // 描画の更新はAnimationController／ValueNotifierのティックだけで行う
+  void _setHover(bool v) {
+    _hover = v;
+    _syncExpandAnim();
+  }
+
+  void _setResizing(bool v) {
+    _resizingN.value = v;
+    _syncExpandAnim();
+  }
+
+  void _setKeyboardExpanded(bool v) {
+    _keyboardExpanded = v;
+    _syncExpandAnim();
+  }
+
+  @override
+  void dispose() {
+    _expandAnim.dispose();
+    _resizingN.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     ref.listen(sidebarFocusRequestProvider, (previous, next) {
-      setState(() => _keyboardExpanded = true);
+      _setKeyboardExpanded(true);
     });
 
     final stack = IndexedStack(
@@ -388,11 +544,9 @@ class _MainAreaState extends ConsumerState<_MainArea> {
           return HomePlaceholderScreen(isActive: isActive);
         }).toList());
 
-    final expanded = _hover || _resizing || _keyboardExpanded;
     final chromeOpacity =
         !widget.overlayMode ? 1.0 : (widget.dimChrome ? 0.85 : 0.0);
     final chromeInteractive = !widget.overlayMode || widget.dimChrome;
-    final width = ref.watch(sidebarWidthProvider);
     final isLeft = widget.sidebarPosition == SidebarPosition.left;
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -404,13 +558,10 @@ class _MainAreaState extends ConsumerState<_MainArea> {
     final tabsOnSidebarSide = isVerticalTabs && verticalTabsLeft == isLeft;
     final sidebarIsOuter =
         !tabsOnSidebarSide || widget.outerEdge == OuterEdgeElement.sidebar;
-    // サイドバーの現在の実効幅（畳んだ状態=44、展開中はドラッグ幅）。
-    // 垂直タブが内側にある場合、これに合わせて垂直タブの位置が追従する
-    final sidebarEffectiveWidth = expanded ? width : _kSidebarCollapsedWidth;
+    // サイドバーが内側にある場合に垂直タブが避けるべき固定オフセット
+    // （サイドバーの畳んだ/展開幅への追従分はAnimatedBuilder内で毎ティック計算する）
     final sidebarInset =
         tabsOnSidebarSide && !sidebarIsOuter ? _kVerticalTabWidth : 0.0;
-    final tabStripInset =
-        tabsOnSidebarSide && sidebarIsOuter ? sidebarEffectiveWidth : 0.0;
 
     // 通常表示（ビューア重ね表示でない）時にメインコンテンツが避けるべき
     // 左右の実幅。サイドバーの畳んだ幅・垂直タブの幅は、どちらが外側かに
@@ -429,9 +580,12 @@ class _MainAreaState extends ConsumerState<_MainArea> {
     ];
     final favBooks = libraryState.books.where((b) => b.isFavorite).toList();
 
-    final collapsedRail = ColoredBox(
-      color: colorScheme.surfaceContainerHighest,
-      child: SafeArea(
+    final railRadius = BorderRadius.horizontal(
+      right: isLeft ? const Radius.circular(18) : Radius.zero,
+      left: isLeft ? Radius.zero : const Radius.circular(18),
+    );
+
+    final collapsedRail = SafeArea(
         top: false,
         child: Column(children: [
           const SizedBox(height: 6),
@@ -439,7 +593,7 @@ class _MainAreaState extends ConsumerState<_MainArea> {
             icon: const Icon(Icons.search, size: 20),
             color: colorScheme.onSurfaceVariant,
             onPressed: () {
-              setState(() => _hover = true);
+              _setHover(true);
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 ref.read(sidebarFocusRequestProvider.notifier).state++;
               });
@@ -521,24 +675,22 @@ class _MainAreaState extends ConsumerState<_MainArea> {
                       : Icons.keyboard_double_arrow_left,
                   size: 20),
               color: colorScheme.onSurfaceVariant,
-              onPressed: () => setState(() => _hover = true),
+              onPressed: () => _setHover(true),
             ),
           ),
-        ]),
-      ),
-    );
+        ]));
 
     final expandedContent = Row(children: isLeft
         ? [
             const Expanded(child: BookshelfSidebar()),
             _SidebarResizeHandle(
                 sidebarPosition: widget.sidebarPosition,
-                onResizingChanged: (v) => setState(() => _resizing = v)),
+                onResizingChanged: _setResizing),
           ]
         : [
             _SidebarResizeHandle(
                 sidebarPosition: widget.sidebarPosition,
-                onResizingChanged: (v) => setState(() => _resizing = v)),
+                onResizingChanged: _setResizing),
             const Expanded(child: BookshelfSidebar()),
           ]);
 
@@ -550,77 +702,125 @@ class _MainAreaState extends ConsumerState<_MainArea> {
         right: widget.overlayMode ? 0 : rightReserved,
         child: Listener(
           onPointerDown: (_) {
-            if (_keyboardExpanded) setState(() => _keyboardExpanded = false);
+            if (_keyboardExpanded) _setKeyboardExpanded(false);
           },
           child: stack,
         ),
       ),
-      // 畳んだサイドバーは常時マウントし、境界の細い帯として固定表示する。
-      // ただし展開中は完全に非表示にする（展開パネルに重ねて隠すのではなく実際に消す）。
-      // ビューア重ね表示時は、タブバー・ビューア下部メニューとは重ならない位置に収める
-      // （書籍本体に被るのは構わないが、UI同士は重ねない）
-      Positioned(
-        top: chromeTop,
-        bottom: chromeBottom,
-        left: isLeft ? sidebarInset : null,
-        right: isLeft ? null : sidebarInset,
-        width: _kSidebarCollapsedWidth,
-        child: MouseRegion(
-          onEnter: (_) => setState(() => _hover = true),
-          onExit: (_) => setState(() => _hover = false),
-          child: IgnorePointer(
-            ignoring: !chromeInteractive || expanded,
-            child: Opacity(
-                opacity: expanded ? 0.0 : chromeOpacity, child: collapsedRail),
-          ),
-        ),
+      // サイドバー・垂直タブ帯はAnimationControllerで駆動する。ガラス効果
+      // (BackdropFilter)はスライド中は外し、静止した時だけ有効にすることで、
+      // 高コストなブラーの毎フレーム再計算による大幅なフレーム落ちを防ぐ。
+      // サイドバー幅のwatchはこのConsumer内に閉じ込め、リサイズドラッグ中も
+      // 外側（IndexedStack内の全タブ画面）が再ビルドされないようにする
+      Positioned.fill(
+        child: Consumer(builder: (context, ref, _) {
+          final width = ref.watch(sidebarWidthProvider);
+          return AnimatedBuilder(
+            animation: Listenable.merge([_expandAnim, _resizingN]),
+            builder: (context, _) {
+              // ★buildのローカル変数を参照すると次のsetStateまで値が固定される
+              // ため、ホバー状態等はここで毎ティック、フィールドから再計算する
+              final t = _expandAnim.value;
+              final expandedNow =
+                  _hover || _resizingN.value || _keyboardExpanded;
+              final atRest = t == 0.0 || t == 1.0;
+              final glassEnabled = atRest && !_resizingN.value;
+              final sidebarEffectiveWidth =
+                  ui.lerpDouble(_kSidebarCollapsedWidth, width, t)!;
+              final tabStripInset = tabsOnSidebarSide && sidebarIsOuter
+                  ? sidebarEffectiveWidth
+                  : 0.0;
+              final panelPos = ui.lerpDouble(-width, sidebarInset, t)!;
+
+              // 背景（ガラス⇔軽量）の切替は_PanelBackground内部で行い、childの
+              // ツリー位置と型は常に不変に保つ。ラッパーの型ごと差し替えると
+              // BookshelfSidebar等が再マウントされ、検索欄のフォーカスや
+              // スクロール位置が破棄されてしまう
+              Widget panel(Widget child, BorderRadius radius) =>
+                  RepaintBoundary(
+                    child: ClipRRect(
+                      borderRadius: radius,
+                      child: Stack(fit: StackFit.expand, children: [
+                        _PanelBackground(glass: glassEnabled, borderRadius: radius),
+                        child,
+                      ]),
+                    ),
+                  );
+
+              return Stack(children: [
+                // 畳んだサイドバーは常時マウントし、境界の細い帯として固定表示する。
+                // 展開が進むにつれ不透明度0までクロスフェードする
+                Positioned(
+                  top: chromeTop,
+                  bottom: chromeBottom,
+                  left: isLeft ? sidebarInset : null,
+                  right: isLeft ? null : sidebarInset,
+                  width: _kSidebarCollapsedWidth,
+                  child: MouseRegion(
+                    onEnter: (_) => _setHover(true),
+                    onExit: (_) => _setHover(false),
+                    child: IgnorePointer(
+                      ignoring: !chromeInteractive || expandedNow,
+                      child: Opacity(
+                        opacity: chromeOpacity * (1 - t),
+                        child: panel(collapsedRail, railRadius),
+                      ),
+                    ),
+                  ),
+                ),
+                // 展開時のパネルは、畳んだ帯の上に幅いっぱいスライドして重なる
+                Positioned(
+                  top: chromeTop,
+                  bottom: chromeBottom,
+                  left: isLeft ? panelPos : null,
+                  right: isLeft ? null : panelPos,
+                  width: width,
+                  child: MouseRegion(
+                    onEnter: (_) => _setHover(true),
+                    onExit: (_) => _setHover(false),
+                    child: IgnorePointer(
+                      ignoring: !chromeInteractive,
+                      child: Opacity(
+                        opacity: chromeOpacity,
+                        child: panel(expandedContent, railRadius),
+                      ),
+                    ),
+                  ),
+                ),
+                // 垂直タブ帯。サイドバーと同じ辺にある場合、設定に応じて外側/内側の
+                // 位置を切り替え、サイドバーが展開している間はその実効幅に追従して動く
+                if (isVerticalTabs)
+                  Positioned(
+                    top: chromeTop,
+                    bottom: chromeBottom,
+                    left: verticalTabsLeft ? tabStripInset : null,
+                    right: verticalTabsLeft ? null : tabStripInset,
+                    width: _kVerticalTabWidth,
+                    child: IgnorePointer(
+                      ignoring: !chromeInteractive,
+                      child: Opacity(
+                        opacity: chromeOpacity,
+                        child: panel(
+                          _VerticalTabStrip(
+                              tabState: widget.tabState,
+                              notifier: widget.tabNotifier),
+                          BorderRadius.horizontal(
+                            right: verticalTabsLeft
+                                ? const Radius.circular(18)
+                                : Radius.zero,
+                            left: verticalTabsLeft
+                                ? Radius.zero
+                                : const Radius.circular(18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ]);
+            },
+          );
+        }),
       ),
-      // 展開時のパネルは、畳んだ帯の上に幅いっぱいスライドして重なる
-      AnimatedPositioned(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeInOut,
-        top: chromeTop,
-        bottom: chromeBottom,
-        left: isLeft ? (expanded ? sidebarInset : -width) : null,
-        right: isLeft ? null : (expanded ? sidebarInset : -width),
-        width: width,
-        child: MouseRegion(
-          onEnter: (_) => setState(() => _hover = true),
-          onExit: (_) => setState(() => _hover = false),
-          child: IgnorePointer(
-            ignoring: !chromeInteractive,
-            child: Opacity(
-              opacity: chromeOpacity,
-              child: DecoratedBox(
-                decoration: BoxDecoration(boxShadow: expanded
-                    ? [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 12)]
-                    : null),
-                child: expandedContent,
-              ),
-            ),
-          ),
-        ),
-      ),
-      // 垂直タブ帯。サイドバーと同じ辺にある場合、設定に応じて外側/内側の
-      // 位置を切り替え、サイドバーが展開している間はその実効幅に追従して動く
-      if (isVerticalTabs)
-        AnimatedPositioned(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeInOut,
-          top: chromeTop,
-          bottom: chromeBottom,
-          left: verticalTabsLeft ? tabStripInset : null,
-          right: verticalTabsLeft ? null : tabStripInset,
-          width: _kVerticalTabWidth,
-          child: IgnorePointer(
-            ignoring: !chromeInteractive,
-            child: Opacity(
-              opacity: chromeOpacity,
-              child: _VerticalTabStrip(
-                  tabState: widget.tabState, notifier: widget.tabNotifier),
-            ),
-          ),
-        ),
     ]);
   }
 }
@@ -671,10 +871,12 @@ class _PathBar extends ConsumerWidget {
     return Container(
         height: 34,
         padding: const EdgeInsets.only(left: 16),
-        decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh,
-            border: Border(
-                bottom: BorderSide(color: colorScheme.outlineVariant, width: 1))),
+        decoration: showWindowControls
+            ? null
+            : BoxDecoration(
+                border: Border(
+                    bottom:
+                        BorderSide(color: colorScheme.outlineVariant, width: 1))),
         child: Row(children: [
           IconButton(
               icon: const Icon(Icons.arrow_back, size: 18),
@@ -797,9 +999,8 @@ class _VerticalTabStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: colorScheme.surfaceContainerHigh,
+      type: MaterialType.transparency,
       child: SizedBox(
         width: _kVerticalTabWidth,
         child: Column(children: [

@@ -48,15 +48,23 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     state = state.copyWith(books: books, shelves: shelves);
   }
 
-  Future<void> syncAll() async {
-    if (!Hive.isBoxOpen('books')) return;
+  Future<({int added, int removed})> syncAll() async {
+    debugPrint('[Sync] syncAll開始');
+    if (!Hive.isBoxOpen('books')) {
+      debugPrint('[Sync] booksボックスが開いていないため中断');
+      return (added: 0, removed: 0);
+    }
     final bookBox = Hive.box<Book>('books');
     final shelfBox = Hive.box<Shelf>('shelves');
+    var added = 0;
+    var removed = 0;
     for (final shelf in shelfBox.values.toList()) {
       try {
         final actualFiles = await _fileService.scanFolder(shelf.folderPath);
         final dbBooks =
             bookBox.values.where((b) => b.shelfId == shelf.id).toList();
+        debugPrint(
+            '[Sync] 本棚「${shelf.name}」: フォルダ内${actualFiles.length}件 / DB登録${dbBooks.length}件');
         for (final fPath in actualFiles) {
           if (!dbBooks.any((b) => b.filePath == fPath)) {
             final bId = _uuid.v4();
@@ -80,33 +88,44 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
               ..isFinished = false
               ..number = number;
             await bookBox.put(bId, book);
+            added++;
+            debugPrint('[Sync] 追加: $fPath');
           }
         }
         for (final dbBook in dbBooks) {
           if (!actualFiles.contains(dbBook.filePath)) {
             await bookBox.delete(dbBook.id);
-          } else if (dbBook.format == BookFormat.cbz &&
-              dbBook.number == null) {
-            dbBook.number =
-                await _cbzService.readComicInfoNumber(dbBook.filePath);
-            await dbBook.save();
+            removed++;
+            debugPrint('[Sync] 削除: ${dbBook.filePath}');
           }
+          // ComicInfo.xmlのNumber読み取りは追加時に一度だけ行う。既存本に対して
+          // 毎回のsyncAllでリトライすると、Numberタグを持たないファイル（多い）は
+          // 永久にnullのままZIP解凍を繰り返すことになり、蔵書数が多い環境で
+          // 同期が極端に遅くなる（F5のたびに全ファイルを再展開してしまう）
         }
-      } catch (_) {
+      } catch (e, st) {
         // 1つの本棚の同期に失敗しても、他の本棚の同期と再読み込みは継続する
+        debugPrint('[Sync] 本棚「${shelf.name}」の同期エラー: $e\n$st');
       }
     }
     await _load();
+    debugPrint('[Sync] syncAll完了: 追加$added件 / 削除$removed件');
+    return (added: added, removed: removed);
   }
 
   // 読書履歴（どこまで読んだか）のみを保存する。いつ読んだかの日時は記録しない
-  Future<void> updateReadProgress(
-      String bookId, int lastPage, bool isFinished) async {
+  Future<void> updateReadProgress(String bookId, int lastPage, bool isFinished,
+      {int? totalPages}) async {
     final book = Hive.box<Book>('books').get(bookId);
     if (book == null) return;
-    if (book.lastPage == lastPage && book.isFinished == isFinished) return;
+    final totalPagesChanged =
+        totalPages != null && book.totalPages != totalPages;
+    if (book.lastPage == lastPage &&
+        book.isFinished == isFinished &&
+        !totalPagesChanged) return;
     book.lastPage = lastPage;
     book.isFinished = isFinished;
+    if (totalPagesChanged) book.totalPages = totalPages;
     await book.save();
     state = state.copyWith(books: List.of(state.books));
   }

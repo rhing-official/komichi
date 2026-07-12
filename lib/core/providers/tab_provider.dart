@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import '../../features/library/models/book.dart';
+import '../../features/library/models/shelf.dart';
 import '../../features/settings/providers/settings_provider.dart';
+import '../../features/settings/models/app_settings.dart';
 
 class TabItem {
   final String id;
@@ -26,48 +29,139 @@ class TabItem {
     this.isSettings = false,
     this.isFavorites = false,
   });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'bookId': bookId,
+        'shelfId': shelfId,
+        'path': path,
+        'segments': segments,
+        'history': history,
+        'historyIndex': historyIndex,
+        'isSettings': isSettings,
+        'isFavorites': isFavorites,
+      };
+
+  static TabItem fromJson(Map<String, dynamic> json) => TabItem(
+        id: json['id'] as String,
+        title: json['title'] as String? ?? '本棚',
+        bookId: json['bookId'] as String?,
+        shelfId: json['shelfId'] as String?,
+        path: json['path'] as String?,
+        segments: (json['segments'] as List?)?.map((e) => e as String).toList() ??
+            const ['トップ'],
+        history: (json['history'] as List?)
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            const [{}],
+        historyIndex: json['historyIndex'] as int? ?? 0,
+        isSettings: json['isSettings'] as bool? ?? false,
+        isFavorites: json['isFavorites'] as bool? ?? false,
+      );
 }
 
 class TabState {
   final List<TabItem> tabs;
   final int currentIndex;
   TabState({required this.tabs, required this.currentIndex});
+
+  String toJson() => jsonEncode({
+        'tabs': tabs.map((t) => t.toJson()).toList(),
+        'currentIndex': currentIndex,
+      });
+
+  // 保存されたJSONからタブ一式を復元する。参照先の書籍/本棚が既に削除されている
+  // タブは復元対象から除外し、全て無効だった場合や解析に失敗した場合はnullを返す
+  static TabState? tryFromJson(
+    String jsonStr, {
+    required bool Function(String) bookExists,
+    required bool Function(String) shelfExists,
+  }) {
+    try {
+      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final rawTabs = (data['tabs'] as List)
+          .map((e) => TabItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      final originalCurrentIndex = data['currentIndex'] as int? ?? 0;
+      final kept = <TabItem>[];
+      int? newCurrentIndex;
+      for (var i = 0; i < rawTabs.length; i++) {
+        final t = rawTabs[i];
+        final valid = (t.bookId == null || bookExists(t.bookId!)) &&
+            (t.shelfId == null || shelfExists(t.shelfId!));
+        if (valid) {
+          if (i == originalCurrentIndex) newCurrentIndex = kept.length;
+          kept.add(t);
+        }
+      }
+      if (kept.isEmpty) return null;
+      return TabState(
+          tabs: kept, currentIndex: (newCurrentIndex ?? 0).clamp(0, kept.length - 1));
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 class TabNotifier extends StateNotifier<TabState> {
   final Ref ref;
   TabNotifier(this.ref) : super(_initialState(ref));
 
-  // 起動時：終了時に読んでいた書籍があれば、そのビューワーを最初のタブとして開く
+  // 起動時：設定が「前回のタブを復元」かつ終了時に読んでいた書籍があれば、
+  // そのビューワーを最初のタブとして開く。「常に本棚タブ」設定の場合は、
+  // 書籍を開かず常に素の本棚タブから始める（読書履歴自体は別途Book側に
+  // 保存されており、この設定の影響を受けない）
   static TabState _initialState(Ref ref) {
-    final bookId = ref.read(settingsProvider).lastOpenBookId;
-    if (bookId != null && Hive.isBoxOpen('books')) {
-      final book = Hive.box<Book>('books').get(bookId);
-      if (book != null) {
-        return TabState(tabs: [
-          TabItem(
-              id: 'root',
-              title: book.title,
-              bookId: book.id,
-              shelfId: book.shelfId,
-              segments: ['トップ', book.title])
-        ], currentIndex: 0);
+    final settings = ref.read(settingsProvider);
+    if (settings.launchTabBehavior == LaunchTabBehavior.resumeLastBook &&
+        Hive.isBoxOpen('books') &&
+        Hive.isBoxOpen('shelves')) {
+      final savedJson = settings.savedTabsJson;
+      if (savedJson != null) {
+        final restored = TabState.tryFromJson(
+          savedJson,
+          bookExists: (id) => Hive.box<Book>('books').containsKey(id),
+          shelfExists: (id) => Hive.box<Shelf>('shelves').containsKey(id),
+        );
+        if (restored != null) return restored;
+      }
+      // 後方互換：まだsavedTabsJsonを持たない（旧バージョンの）データの場合、
+      // 前回開いていた書籍1件だけでも復元する
+      final bookId = settings.lastOpenBookId;
+      if (bookId != null) {
+        final book = Hive.box<Book>('books').get(bookId);
+        if (book != null) {
+          return TabState(tabs: [
+            TabItem(
+                id: 'root',
+                title: book.title,
+                bookId: book.id,
+                shelfId: book.shelfId,
+                segments: ['トップ', book.title])
+          ], currentIndex: 0);
+        }
       }
     }
     return TabState(tabs: [TabItem(id: 'root')], currentIndex: 0);
   }
 
-  // 現在フォーカス中のタブが開いている書籍を、次回起動時の自動再開用に保存する。
-  // 書籍を閉じた（現在のタブが書籍でなくなった）場合は保存内容もクリアする
+  // 開いているタブ全体（本棚・書籍・設定・お気に入りタブと選択状態）を、次回
+  // 起動時の復元用にJSONとして保存する。読書履歴（Book.lastPage等）はここでは
+  // 一切触らないため、「常に本棚タブから始める」設定に切り替えても影響しない
   @override
   set state(TabState value) {
     super.state = value;
     final bookId = value.tabs[value.currentIndex].bookId;
     final settingsNotifier = ref.read(settingsProvider.notifier);
-    if (ref.read(settingsProvider).lastOpenBookId != bookId) {
-      settingsNotifier.state = bookId == null
-          ? ref.read(settingsProvider).copyWith(clearLastOpenBookId: true)
-          : ref.read(settingsProvider).copyWith(lastOpenBookId: bookId);
+    final settings = ref.read(settingsProvider);
+    final newJson = value.toJson();
+    if (settings.lastOpenBookId != bookId || settings.savedTabsJson != newJson) {
+      settingsNotifier.state = settings.copyWith(
+        lastOpenBookId: bookId,
+        clearLastOpenBookId: bookId == null,
+        savedTabsJson: newJson,
+      );
     }
   }
 
