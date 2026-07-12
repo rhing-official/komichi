@@ -82,6 +82,16 @@ enum LaunchTabBehavior {
   alwaysLibrary,
 }
 
+// ★追加：中クリックで書籍/フォルダを新しいタブで開いた時、そのまま新しい
+// タブへ自動的に切り替えるか、元のタブに留まるか
+@HiveType(typeId: 12)
+enum MiddleClickTabBehavior {
+  @HiveField(0)
+  switchToNewTab,
+  @HiveField(1)
+  stayOnCurrentTab,
+}
+
 @HiveType(typeId: 1)
 class AppSettings {
   @HiveField(0, defaultValue: PageDirection.leftToNext)
@@ -115,6 +125,9 @@ class AppSettings {
   @HiveField(9)
   final String? savedTabsJson;
 
+  @HiveField(10, defaultValue: MiddleClickTabBehavior.switchToNewTab)
+  final MiddleClickTabBehavior middleClickTabBehavior;
+
   AppSettings({
     this.pageDirection = PageDirection.leftToNext,
     this.theme = AppTheme.system,
@@ -125,6 +138,7 @@ class AppSettings {
     this.outerEdgeElement = OuterEdgeElement.verticalTabs,
     this.launchTabBehavior = LaunchTabBehavior.resumeLastBook,
     this.savedTabsJson,
+    this.middleClickTabBehavior = MiddleClickTabBehavior.switchToNewTab,
   });
 
   AppSettings copyWith({
@@ -138,6 +152,7 @@ class AppSettings {
     OuterEdgeElement? outerEdgeElement,
     LaunchTabBehavior? launchTabBehavior,
     String? savedTabsJson,
+    MiddleClickTabBehavior? middleClickTabBehavior,
   }) {
     return AppSettings(
       pageDirection: pageDirection ?? this.pageDirection,
@@ -151,6 +166,8 @@ class AppSettings {
       outerEdgeElement: outerEdgeElement ?? this.outerEdgeElement,
       launchTabBehavior: launchTabBehavior ?? this.launchTabBehavior,
       savedTabsJson: savedTabsJson ?? this.savedTabsJson,
+      middleClickTabBehavior:
+          middleClickTabBehavior ?? this.middleClickTabBehavior,
     );
   }
 }

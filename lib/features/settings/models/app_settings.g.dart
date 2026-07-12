@@ -37,13 +37,16 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
           ? LaunchTabBehavior.resumeLastBook
           : fields[8] as LaunchTabBehavior,
       savedTabsJson: fields[9] as String?,
+      middleClickTabBehavior: fields[10] == null
+          ? MiddleClickTabBehavior.switchToNewTab
+          : fields[10] as MiddleClickTabBehavior,
     );
   }
 
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.pageDirection)
       ..writeByte(2)
@@ -61,7 +64,9 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(8)
       ..write(obj.launchTabBehavior)
       ..writeByte(9)
-      ..write(obj.savedTabsJson);
+      ..write(obj.savedTabsJson)
+      ..writeByte(10)
+      ..write(obj.middleClickTabBehavior);
   }
 
   @override
@@ -393,6 +398,46 @@ class LaunchTabBehaviorAdapter extends TypeAdapter<LaunchTabBehavior> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is LaunchTabBehaviorAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class MiddleClickTabBehaviorAdapter
+    extends TypeAdapter<MiddleClickTabBehavior> {
+  @override
+  final int typeId = 12;
+
+  @override
+  MiddleClickTabBehavior read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return MiddleClickTabBehavior.switchToNewTab;
+      case 1:
+        return MiddleClickTabBehavior.stayOnCurrentTab;
+      default:
+        return MiddleClickTabBehavior.switchToNewTab;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, MiddleClickTabBehavior obj) {
+    switch (obj) {
+      case MiddleClickTabBehavior.switchToNewTab:
+        writer.writeByte(0);
+        break;
+      case MiddleClickTabBehavior.stayOnCurrentTab:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MiddleClickTabBehaviorAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

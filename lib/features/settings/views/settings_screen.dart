@@ -226,6 +226,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const Divider(),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
+                    child: Text('中クリックで新しいタブを開いた時',
+                        style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                  RadioListTile<MiddleClickTabBehavior>(
+                    title: const Text('新しいタブに自動的に切り替える'),
+                    value: MiddleClickTabBehavior.switchToNewTab,
+                    groupValue: settings.middleClickTabBehavior,
+                    onChanged: (val) {
+                      if (val != null)
+                        notifier.state =
+                            settings.copyWith(middleClickTabBehavior: val);
+                    },
+                  ),
+                  RadioListTile<MiddleClickTabBehavior>(
+                    title: const Text('元のタブに留まる'),
+                    subtitle: const Text('新しいタブはバックグラウンドで開かれます'),
+                    value: MiddleClickTabBehavior.stayOnCurrentTab,
+                    groupValue: settings.middleClickTabBehavior,
+                    onChanged: (val) {
+                      if (val != null)
+                        notifier.state =
+                            settings.copyWith(middleClickTabBehavior: val);
+                    },
+                  ),
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
                     child: Text('テーマ設定',
                         style: Theme.of(context).textTheme.titleMedium),
                   ),

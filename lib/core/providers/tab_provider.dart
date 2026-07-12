@@ -211,6 +211,8 @@ class TabNotifier extends StateNotifier<TabState> {
       List<String>? segments,
       bool openInNewTab = false}) {
     if (openInNewTab) {
+      final stay = ref.read(settingsProvider).middleClickTabBehavior ==
+          MiddleClickTabBehavior.stayOnCurrentTab;
       state = TabState(tabs: [
         ...state.tabs,
         TabItem(
@@ -228,7 +230,7 @@ class TabNotifier extends StateNotifier<TabState> {
               }
             ],
             historyIndex: 0)
-      ], currentIndex: state.tabs.length);
+      ], currentIndex: stay ? state.currentIndex : state.tabs.length);
       return;
     }
     final newTabs = [...state.tabs];
@@ -260,6 +262,8 @@ class TabNotifier extends StateNotifier<TabState> {
     final finalSegments = segments ?? ['トップ', title];
 
     if (openInNewTab) {
+      final stay = ref.read(settingsProvider).middleClickTabBehavior ==
+          MiddleClickTabBehavior.stayOnCurrentTab;
       state = TabState(tabs: [
         ...state.tabs,
         TabItem(
@@ -269,7 +273,7 @@ class TabNotifier extends StateNotifier<TabState> {
             shelfId: currentShelfId,
             path: currentPath,
             segments: finalSegments)
-      ], currentIndex: state.tabs.length);
+      ], currentIndex: stay ? state.currentIndex : state.tabs.length);
     } else {
       final newTabs = [...state.tabs];
       newTabs[state.currentIndex] = TabItem(

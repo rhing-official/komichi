@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import '../models/book.dart';
@@ -7,6 +8,7 @@ import '../models/shelf.dart';
 import '../providers/library_provider.dart';
 import '../widgets/read_progress_bar.dart';
 import '../../../core/providers/tab_provider.dart';
+import '../../../core/providers/selection_provider.dart';
 import '../../../core/utils/sort_utils.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
@@ -56,6 +58,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     final favBooks = state.books.where((b) => b.isFavorite).toList()
       ..sort((a, b) => SortUtils.compareNatural(a.title, b.title));
 
+    final allIds = [
+      ...favFolders.map((e) => e.$2),
+      ...favBooks.map((b) => b.id),
+    ];
+
     final content = (favFolders.isEmpty && favBooks.isEmpty)
         ? Center(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -84,17 +91,28 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
             itemBuilder: (context, index) {
               if (index < favFolders.length) {
                 final (shelf, path) = favFolders[index];
-                return _FavoriteFolderCard(shelf: shelf, path: path);
+                return _FavoriteFolderCard(
+                    shelf: shelf, path: path, index: index, allIds: allIds);
               }
               return _FavoriteBookCard(
-                  book: favBooks[index - favFolders.length]);
+                  book: favBooks[index - favFolders.length],
+                  index: index,
+                  allIds: allIds);
             },
           );
 
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
-      onKeyEvent: (node, event) => KeyEventResult.ignored,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (HardwareKeyboard.instance.isControlPressed &&
+            event.logicalKey == LogicalKeyboardKey.keyA) {
+          ref.read(selectionProvider.notifier).selectAll(allIds);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
       child: Listener(
         behavior: HitTestBehavior.translucent,
         onPointerDown: (_) => _focusNode.requestFocus(),
@@ -104,10 +122,64 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   }
 }
 
+// 複数選択中に、選択済みの項目を右クリック（長押し）した場合はこちらを優先する。
+// お気に入りタブでは「お気に入り解除」のみ選択中の全項目（本・フォルダ混在）に
+// まとめて適用する（削除はここでは扱わない。フォルダ/ファイルの削除は本棚タブの役割）
+Future<bool> _showFavBatchMenuIfApplicable({
+  required BuildContext context,
+  required WidgetRef ref,
+  required Offset globalPosition,
+  required String itemId,
+}) async {
+  final selection = ref.read(selectionProvider);
+  if (selection.selectedIds.length <= 1 ||
+      !selection.selectedIds.contains(itemId)) {
+    return false;
+  }
+  final libState = ref.read(libraryProvider);
+  final ids = selection.selectedIds;
+  final selectedBooks =
+      libState.books.where((b) => ids.contains(b.id)).toList();
+  final selectedFolders = <(Shelf, String)>[
+    for (final s in libState.shelves)
+      for (final path in s.favoriteFolders)
+        if (ids.contains(path)) (s, path),
+  ];
+
+  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  final selected = await showMenu<String>(
+    context: context,
+    position: RelativeRect.fromRect(
+        globalPosition & const Size(1, 1), Offset.zero & overlay.size),
+    items: const [
+      PopupMenuItem(value: 'favorite', child: Text('お気に入り解除')),
+    ],
+  );
+  final notifier = ref.read(libraryProvider.notifier);
+  switch (selected) {
+    case 'favorite':
+      for (final b in selectedBooks) {
+        await notifier.toggleBookFavorite(b);
+      }
+      for (final (shelf, path) in selectedFolders) {
+        await notifier.toggleFolderFavorite(shelf.id, path, false);
+      }
+      ref.read(selectionProvider.notifier).clear();
+      break;
+  }
+  return true;
+}
+
 class _FavoriteFolderCard extends ConsumerStatefulWidget {
   final Shelf shelf;
   final String path;
-  const _FavoriteFolderCard({required this.shelf, required this.path});
+  final int index;
+  final List<String> allIds;
+  const _FavoriteFolderCard(
+      {required this.shelf,
+      required this.path,
+      required this.index,
+      required this.allIds});
   @override
   ConsumerState<_FavoriteFolderCard> createState() =>
       _FavoriteFolderCardState();
@@ -117,6 +189,14 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
   bool _hover = false;
 
   Future<void> _showMenu(Offset globalPosition, List<String> segments) async {
+    if (await _showFavBatchMenuIfApplicable(
+        context: context,
+        ref: ref,
+        globalPosition: globalPosition,
+        itemId: widget.path)) {
+      return;
+    }
+    if (!mounted) return;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
@@ -148,6 +228,8 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final state = ref.watch(libraryProvider);
+    final isChecked =
+        ref.watch(selectionProvider).selectedIds.contains(widget.path);
     final fName = p.basename(widget.path);
     final rel = p.relative(widget.path, from: widget.shelf.folderPath);
     final relParts = rel == '.' ? <String>[] : rel.split(p.separator);
@@ -185,11 +267,23 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
               onSecondaryTapDown: (d) => _showMenu(d.globalPosition, segments),
               onLongPressStart: (d) => _showMenu(d.globalPosition, segments),
               child: InkWell(
-                onTap: () => ref.read(tabProvider.notifier).navigateTo(
-                    widget.shelf.id,
-                    path: widget.path,
-                    title: fName,
-                    segments: segments),
+                onTap: () {
+                  if (HardwareKeyboard.instance.isControlPressed) {
+                    ref
+                        .read(selectionProvider.notifier)
+                        .toggle(widget.path, widget.index);
+                  } else if (HardwareKeyboard.instance.isShiftPressed) {
+                    ref
+                        .read(selectionProvider.notifier)
+                        .selectRange(widget.index, widget.allIds);
+                  } else {
+                    ref.read(tabProvider.notifier).navigateTo(
+                        widget.shelf.id,
+                        path: widget.path,
+                        title: fName,
+                        segments: segments);
+                  }
+                },
                 child: Stack(children: [
                   if (thumbBooks.isEmpty)
                     Center(
@@ -237,6 +331,19 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
                         ),
                       ),
                     ),
+                  if (_hover || isChecked)
+                    Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Checkbox(
+                            value: isChecked,
+                            onChanged: (_) => ref
+                                .read(selectionProvider.notifier)
+                                .toggle(widget.path, widget.index))),
+                  const Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Icon(Icons.star, color: Colors.amber, size: 18)),
                 ]),
               ),
             ),
@@ -263,7 +370,10 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
 
 class _FavoriteBookCard extends ConsumerStatefulWidget {
   final Book book;
-  const _FavoriteBookCard({required this.book});
+  final int index;
+  final List<String> allIds;
+  const _FavoriteBookCard(
+      {required this.book, required this.index, required this.allIds});
   @override
   ConsumerState<_FavoriteBookCard> createState() => _FavoriteBookCardState();
 }
@@ -272,6 +382,14 @@ class _FavoriteBookCardState extends ConsumerState<_FavoriteBookCard> {
   bool _hover = false;
 
   Future<void> _showMenu(Offset globalPosition) async {
+    if (await _showFavBatchMenuIfApplicable(
+        context: context,
+        ref: ref,
+        globalPosition: globalPosition,
+        itemId: widget.book.id)) {
+      return;
+    }
+    if (!mounted) return;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
@@ -297,6 +415,8 @@ class _FavoriteBookCardState extends ConsumerState<_FavoriteBookCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isChecked =
+        ref.watch(selectionProvider).selectedIds.contains(widget.book.id);
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
@@ -319,9 +439,21 @@ class _FavoriteBookCardState extends ConsumerState<_FavoriteBookCard> {
                 onSecondaryTapDown: (d) => _showMenu(d.globalPosition),
                 onLongPressStart: (d) => _showMenu(d.globalPosition),
                 child: InkWell(
-                  onTap: () => ref
-                      .read(tabProvider.notifier)
-                      .openBook(widget.book.id, widget.book.title, false),
+                  onTap: () {
+                    if (HardwareKeyboard.instance.isControlPressed) {
+                      ref
+                          .read(selectionProvider.notifier)
+                          .toggle(widget.book.id, widget.index);
+                    } else if (HardwareKeyboard.instance.isShiftPressed) {
+                      ref
+                          .read(selectionProvider.notifier)
+                          .selectRange(widget.index, widget.allIds);
+                    } else {
+                      ref
+                          .read(tabProvider.notifier)
+                          .openBook(widget.book.id, widget.book.title, false);
+                    }
+                  },
                   child: widget.book.thumbnailPath != null
                       ? Image.file(File(widget.book.thumbnailPath!),
                           fit: BoxFit.contain,
@@ -336,6 +468,19 @@ class _FavoriteBookCardState extends ConsumerState<_FavoriteBookCard> {
                 left: 0,
                 right: 0,
                 child: ReadProgressBar(book: widget.book)),
+            if (_hover || isChecked)
+              Positioned(
+                  top: 4,
+                  left: 4,
+                  child: Checkbox(
+                      value: isChecked,
+                      onChanged: (v) => ref
+                          .read(selectionProvider.notifier)
+                          .toggle(widget.book.id, widget.index))),
+            const Positioned(
+                top: 4,
+                right: 4,
+                child: Icon(Icons.star, color: Colors.amber, size: 18)),
           ]),
         )),
         Padding(

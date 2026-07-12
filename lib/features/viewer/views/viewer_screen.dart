@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
@@ -18,10 +19,19 @@ class ViewerScreen extends ConsumerStatefulWidget {
   ConsumerState<ViewerScreen> createState() => _ViewerScreenState();
 }
 
-class _ViewerScreenState extends ConsumerState<ViewerScreen> {
+class _ViewerScreenState extends ConsumerState<ViewerScreen>
+    with SingleTickerProviderStateMixin {
   final TransformationController _transformationController =
       TransformationController();
   final FocusNode _focusNode = FocusNode();
+
+  // 下部メニューバーのスライド(showUI)をAnimationControllerで駆動する。
+  // ガラス効果(BackdropFilter)はスライド中の毎フレーム再計算が非常に重いため、
+  // スライド中はブラー無しの不透明背景に切り替え、静止した時だけガラスにする
+  // （サイドバーで実際に発生したジャンクと同じ原因を先回りして回避する）
+  late final AnimationController _menuAnim =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
+  bool? _wasShowUI;
 
   // フォーカスはタブがアクティブになった時と画面タップ時(onTapUp)のみ取得する。
   // buildのたびにrequestFocusすると、サイドバーの検索欄など他所にフォーカスが
@@ -69,6 +79,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
   void dispose() {
     _transformationController.dispose();
     _focusNode.dispose();
+    _menuAnim.dispose();
     super.dispose();
   }
 
@@ -83,6 +94,11 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
 
     if (state.isLoading)
       return const Center(child: CircularProgressIndicator());
+
+    if (_wasShowUI != state.showUI) {
+      _wasShowUI = state.showUI;
+      state.showUI ? _menuAnim.forward() : _menuAnim.reverse();
+    }
 
     return Focus(
       focusNode: _focusNode,
@@ -187,30 +203,36 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
                 ),
               ),
             ),
-            AnimatedPositioned(
-                duration: const Duration(milliseconds: 200),
-                bottom: state.showUI ? 0 : -130,
-                left: 0,
-                right: 0,
-                child: _buildBottomMenu(settings, state, notifier)),
+            AnimatedBuilder(
+              animation: _menuAnim,
+              builder: (context, _) {
+                final t = _menuAnim.value;
+                final atRest = t == 0.0 || t == 1.0;
+                return Positioned(
+                  bottom: -130 + 130 * t,
+                  left: 0,
+                  right: 0,
+                  child: _buildBottomMenu(settings, state, notifier,
+                      glass: atRest),
+                );
+              },
+            ),
           ]),
         ),
       ),
     );
   }
 
-  Widget _buildBottomMenu(AppSettings settings, state, notifier) {
+  // ガラス効果(BackdropFilter)はスライド中の毎フレーム再計算が非常に重いため、
+  // 静止した時（glass=true）だけ有効にする。ビューアは常に黒背景の読書画面
+  // なので、テーマ色ではなく黒基調のガラス（半透明の黒＋ブラー）にする
+  Widget _buildBottomMenu(AppSettings settings, state, notifier,
+      {required bool glass}) {
     final bool isLeftToNext =
         settings.pageDirection == PageDirection.leftToNext;
-    return Container(
-      height: kViewerBottomMenuHeight,
-      decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.85),
-          border:
-              const Border(top: BorderSide(color: Colors.white12, width: 0.5))),
-      child: Column(children: [
+    final content = Column(children: [
         SizedBox(
-          height: 20,
+          height: 30,
           child: Stack(children: [
             Positioned(
               left: 16,
@@ -219,7 +241,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
               child: Center(
                 child: Text('${state.totalPages}',
                     style:
-                        const TextStyle(color: Colors.white70, fontSize: 12)),
+                        const TextStyle(color: Colors.white70, fontSize: 18)),
               ),
             ),
             Positioned(
@@ -229,7 +251,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
               child: Center(
                 child: Text('${state.currentPage + 1}',
                     style:
-                        const TextStyle(color: Colors.white70, fontSize: 12)),
+                        const TextStyle(color: Colors.white70, fontSize: 18)),
               ),
             ),
           ]),
@@ -262,7 +284,44 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
               icon: _bookNavIcon(isNext: !isLeftToNext),
               onPressed: () => notifier.switchBook(!isLeftToNext)),
         ]),
-      ]),
+      ]);
+
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        child: SizedBox(
+          height: kViewerBottomMenuHeight,
+          child: Stack(fit: StackFit.expand, children: [
+            if (glass)
+              BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    // Border(top: ...)は角丸を無視して直線を引いてしまい、
+                    // 上端の角が四角く見えてしまうため、borderRadiusを持つ
+                    // Border.allで角丸に沿った縁取りにする
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(18)),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        width: 1),
+                  ),
+                ),
+              )
+            else
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(18)),
+                  border: Border.all(color: Colors.white12, width: 0.5),
+                ),
+              ),
+            content,
+          ]),
+        ),
+      ),
     );
   }
 

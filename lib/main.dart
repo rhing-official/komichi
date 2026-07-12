@@ -43,6 +43,8 @@ void main() async {
       Hive.registerAdapter(OuterEdgeElementAdapter());
     if (!Hive.isAdapterRegistered(11))
       Hive.registerAdapter(LaunchTabBehaviorAdapter());
+    if (!Hive.isAdapterRegistered(12))
+      Hive.registerAdapter(MiddleClickTabBehaviorAdapter());
 
     // ★ ここで全てのBoxが開くのを確実に待つ（これがエラーの解決策）
     await Future.wait([

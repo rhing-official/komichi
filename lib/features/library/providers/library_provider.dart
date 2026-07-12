@@ -158,17 +158,6 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   Future<void> toggleFolderFavorite(
       String shelfId, String folderPath, bool favorite) async {
-    final bookBox = Hive.box<Book>('books');
-    final books = bookBox.values
-        .where((b) =>
-            b.shelfId == shelfId &&
-            (b.filePath == folderPath ||
-                b.filePath.startsWith(folderPath + p.separator)))
-        .toList();
-    for (var b in books) {
-      b.isFavorite = favorite;
-      await b.save();
-    }
     final shelf = Hive.box<Shelf>('shelves').get(shelfId);
     if (shelf != null) {
       final favs = List<String>.from(shelf.favoriteFolders);

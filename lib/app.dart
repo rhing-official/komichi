@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:path/path.dart' as p;
 import 'features/library/models/shelf.dart';
 import 'core/utils/platform_utils.dart';
+import 'core/widgets/glass_panel.dart';
 import 'core/providers/tab_provider.dart';
 import 'core/providers/sidebar_focus_provider.dart';
 import 'core/providers/sidebar_width_provider.dart';
@@ -34,8 +35,15 @@ ColorScheme _monochromeScheme(Brightness brightness) {
         isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE8E8E8),
     surfaceContainerHighest:
         isDark ? const Color(0xFF303030) : const Color(0xFFE0E0E0),
-    onSurfaceVariant: isDark ? const Color(0xFFB0B0B0) : const Color(0xFF616161),
+    onSurfaceVariant:
+        isDark ? const Color(0xFFB0B0B0) : const Color(0xFF616161),
     outlineVariant: isDark ? const Color(0xFF424242) : const Color(0xFFD0D0D0),
+    // ★アクティブなタブなど、周囲の背景から確実に浮き立たせたい要素専用の
+    // 色ロール。surfaceの反転（暗背景では明色、明背景では暗色）にすることで、
+    // ガラス効果で背景が半透明・ぼかし気味でも常にコントラストが取れる
+    inverseSurface: isDark ? const Color(0xFFE6E6E6) : const Color(0xFF2A2A2A),
+    onInverseSurface:
+        isDark ? const Color(0xFF1A1A1A) : const Color(0xFFECECEC),
   );
 }
 
@@ -58,13 +66,21 @@ class KomichiApp extends ConsumerWidget {
         colorScheme: _monochromeScheme(Brightness.light),
         scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
-        fontFamilyFallback: const ['Noto Sans CJK JP', 'Noto Sans JP', 'Sans-Serif'],
+        fontFamilyFallback: const [
+          'Noto Sans CJK JP',
+          'Noto Sans JP',
+          'Sans-Serif'
+        ],
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         colorScheme: _monochromeScheme(Brightness.dark),
         useMaterial3: true,
-        fontFamilyFallback: const ['Noto Sans CJK JP', 'Noto Sans JP', 'Sans-Serif'],
+        fontFamilyFallback: const [
+          'Noto Sans CJK JP',
+          'Noto Sans JP',
+          'Sans-Serif'
+        ],
       ),
       home: const TabShell(),
     );
@@ -226,7 +242,8 @@ class _TabShellState extends ConsumerState<TabShell> {
     final isVerticalTabs = tabBarPos != TabBarPosition.top;
     // 垂直タブ使用時は水平タブの列（AppBarのタブ行）自体を廃止し、
     // パスバーの高さだけを上部に確保して表示領域を広げる
-    final chromeBarHeight = isVerticalTabs ? _kPathBarHeight : _kChromeBarHeight;
+    final chromeBarHeight =
+        isVerticalTabs ? _kPathBarHeight : _kChromeBarHeight;
 
     return Listener(
       onPointerDown: (event) {
@@ -253,7 +270,10 @@ class _TabShellState extends ConsumerState<TabShell> {
               ? null
               : PreferredSize(
                   preferredSize: Size.fromHeight(chromeBarHeight),
-                  child: _GlassPanel(
+                  child: GlassPanel(
+                    // ビューワー時のオーバーレイ表示と形を統一する（下側のみ角丸）
+                    borderRadius:
+                        const BorderRadius.vertical(bottom: Radius.circular(18)),
                     child: isVerticalTabs
                         ? const _PathBar(showWindowControls: true)
                         : _buildChromeBar(tabState, notifier, colorScheme),
@@ -280,7 +300,7 @@ class _TabShellState extends ConsumerState<TabShell> {
                         opacity: dimChrome ? 0.85 : 0.0,
                         child: SizedBox(
                             height: chromeBarHeight,
-                            child: _GlassPanel(
+                            child: GlassPanel(
                               borderRadius: const BorderRadius.vertical(
                                   bottom: Radius.circular(18)),
                               child: isVerticalTabs
@@ -325,8 +345,7 @@ class _TabShellState extends ConsumerState<TabShell> {
                       ...tabState.tabs
                           .asMap()
                           .entries
-                          .map((e) =>
-                              _TabWidget(item: e.value, index: e.key))
+                          .map((e) => _TabWidget(item: e.value, index: e.key))
                           .toList(),
                     ]))),
             IconButton(
@@ -394,90 +413,9 @@ const double _kChromeBarHeight = 72;
 const double _kPathBarHeight = 34;
 // 垂直タブ使用時、サイドバーよりも外側（画面端側）に表示するタブ帯の幅
 const double _kVerticalTabWidth = 200;
-
-// Apple Liquid Glass 風のすりガラス背景。裏の内容をぼかしつつ半透明の色味を
-// 重ね、外側の角を丸め、上端にハイライトの縁取りを入れることでガラスの
-// 質感を表現する。中身（BookshelfSidebar等）は自身の背景を透明にしておくこと
-class _GlassPanel extends StatelessWidget {
-  final Widget child;
-  final BorderRadius borderRadius;
-  const _GlassPanel({required this.child, this.borderRadius = BorderRadius.zero});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tint = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.55);
-    final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.14)
-        : Colors.white.withValues(alpha: 0.7);
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: tint,
-            borderRadius: borderRadius,
-            border: Border.all(color: borderColor, width: 1),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4)),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-// サイドバー・垂直タブ用の背景専用レイヤー（childを持たない）。
-// ガラス効果(BackdropFilter)はスライド中の毎フレーム再計算が非常に重いため、
-// スライド中はブラー無しの不透明背景に切り替える。切り替えはこのウィジェットの
-// 「内部」で行うことが重要：型の異なるラッパー（_GlassPanel等）でコンテンツを
-// 包み替えると、コンテンツのサブツリーごと再マウントされて状態（サイドバーの
-// 検索欄のFocusNode等）が破棄されてしまう
-class _PanelBackground extends StatelessWidget {
-  final bool glass;
-  final BorderRadius borderRadius;
-  const _PanelBackground(
-      {required this.glass, this.borderRadius = BorderRadius.zero});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (!glass) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: borderRadius),
-        child: const SizedBox.expand(),
-      );
-    }
-    final isDark = theme.brightness == Brightness.dark;
-    final tint = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.55);
-    final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.14)
-        : Colors.white.withValues(alpha: 0.7);
-    return BackdropFilter(
-      filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: tint,
-          borderRadius: borderRadius,
-          border: Border.all(color: borderColor, width: 1),
-        ),
-        child: const SizedBox.expand(),
-      ),
-    );
-  }
-}
+// ビューア重ね表示時、パスバー/メニューバーとサイドバー・垂直タブ帯が
+// 接触して見た目が干渉しないよう空ける隙間
+const double _kOverlayGap = 10;
 
 class _MainAreaState extends ConsumerState<_MainArea>
     with SingleTickerProviderStateMixin {
@@ -544,8 +482,12 @@ class _MainAreaState extends ConsumerState<_MainArea>
           return HomePlaceholderScreen(isActive: isActive);
         }).toList());
 
+    // ビューワーを開いている間、サイドバー・垂直タブ帯はSpace(dimChrome)で
+    // 表示/非表示を切り替える。表示時の見た目はパスバー・ビューアのメニュー
+    // バーと同じガラス効果＋同じ透過率(0.85)に統一する（glassEnabledの計算も
+    // 同様、overlayMode中だけ特別扱いしない）
     final chromeOpacity =
-        !widget.overlayMode ? 1.0 : (widget.dimChrome ? 0.85 : 0.0);
+        !widget.overlayMode ? 1.0 : (widget.dimChrome ? 1.0 : 0.0);
     final chromeInteractive = !widget.overlayMode || widget.dimChrome;
     final isLeft = widget.sidebarPosition == SidebarPosition.left;
     final colorScheme = Theme.of(context).colorScheme;
@@ -571,8 +513,12 @@ class _MainAreaState extends ConsumerState<_MainArea>
     final rightReserved = (!isLeft ? _kSidebarCollapsedWidth : 0.0) +
         (isVerticalTabs && !verticalTabsLeft ? _kVerticalTabWidth : 0.0);
 
-    final chromeTop = widget.overlayMode ? widget.chromeBarHeight : 0.0;
-    final chromeBottom = widget.overlayMode ? kViewerBottomMenuHeight : 0.0;
+    // 通常表示（本棚等）でもパスバー・画面端との間に同じ隙間を空け、
+    // ビューア重ね表示時と見た目の余白を統一する
+    final chromeTop =
+        _kOverlayGap + (widget.overlayMode ? widget.chromeBarHeight : 0.0);
+    final chromeBottom =
+        _kOverlayGap + (widget.overlayMode ? kViewerBottomMenuHeight : 0.0);
     final libraryState = ref.watch(libraryProvider);
     final favFolders = <(Shelf, String)>[
       for (final s in libraryState.shelves)
@@ -607,7 +553,10 @@ class _MainAreaState extends ConsumerState<_MainArea>
                 : () => ref.read(libraryProvider.notifier).addShelf(context),
           ),
           Divider(
-              height: 9, indent: 8, endIndent: 8, color: colorScheme.outlineVariant),
+              height: 9,
+              indent: 8,
+              endIndent: 8,
+              color: colorScheme.outlineVariant),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 2),
@@ -631,11 +580,12 @@ class _MainAreaState extends ConsumerState<_MainArea>
                           tooltip: fName,
                           icon: const Icon(Icons.folder),
                           color: colorScheme.onSurfaceVariant,
-                          onPressed: () => ref.read(tabProvider.notifier).navigateTo(
-                              s.id,
-                              path: path,
-                              title: fName,
-                              segments: ['トップ', s.name, ...relParts]),
+                          onPressed: () => ref
+                              .read(tabProvider.notifier)
+                              .navigateTo(s.id,
+                                  path: path,
+                                  title: fName,
+                                  segments: ['トップ', s.name, ...relParts]),
                         ),
                       ),
                     ),
@@ -665,7 +615,10 @@ class _MainAreaState extends ConsumerState<_MainArea>
             ),
           ),
           Divider(
-              height: 9, indent: 8, endIndent: 8, color: colorScheme.outlineVariant),
+              height: 9,
+              indent: 8,
+              endIndent: 8,
+              color: colorScheme.outlineVariant),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: IconButton(
@@ -680,19 +633,20 @@ class _MainAreaState extends ConsumerState<_MainArea>
           ),
         ]));
 
-    final expandedContent = Row(children: isLeft
-        ? [
-            const Expanded(child: BookshelfSidebar()),
-            _SidebarResizeHandle(
-                sidebarPosition: widget.sidebarPosition,
-                onResizingChanged: _setResizing),
-          ]
-        : [
-            _SidebarResizeHandle(
-                sidebarPosition: widget.sidebarPosition,
-                onResizingChanged: _setResizing),
-            const Expanded(child: BookshelfSidebar()),
-          ]);
+    final expandedContent = Row(
+        children: isLeft
+            ? [
+                const Expanded(child: BookshelfSidebar()),
+                _SidebarResizeHandle(
+                    sidebarPosition: widget.sidebarPosition,
+                    onResizingChanged: _setResizing),
+              ]
+            : [
+                _SidebarResizeHandle(
+                    sidebarPosition: widget.sidebarPosition,
+                    onResizingChanged: _setResizing),
+                const Expanded(child: BookshelfSidebar()),
+              ]);
 
     return Stack(children: [
       Positioned(
@@ -724,6 +678,8 @@ class _MainAreaState extends ConsumerState<_MainArea>
               final expandedNow =
                   _hover || _resizingN.value || _keyboardExpanded;
               final atRest = t == 0.0 || t == 1.0;
+              // パスバー・メニューバーと同じガラス効果に統一する
+              // （ビューア中だけ特別に無効化しない）
               final glassEnabled = atRest && !_resizingN.value;
               final sidebarEffectiveWidth =
                   ui.lerpDouble(_kSidebarCollapsedWidth, width, t)!;
@@ -741,7 +697,8 @@ class _MainAreaState extends ConsumerState<_MainArea>
                     child: ClipRRect(
                       borderRadius: radius,
                       child: Stack(fit: StackFit.expand, children: [
-                        _PanelBackground(glass: glassEnabled, borderRadius: radius),
+                        PanelBackground(
+                            glass: glassEnabled, borderRadius: radius),
                         child,
                       ]),
                     ),
@@ -875,8 +832,8 @@ class _PathBar extends ConsumerWidget {
             ? null
             : BoxDecoration(
                 border: Border(
-                    bottom:
-                        BorderSide(color: colorScheme.outlineVariant, width: 1))),
+                    bottom: BorderSide(
+                        color: colorScheme.outlineVariant, width: 1))),
         child: Row(children: [
           IconButton(
               icon: const Icon(Icons.arrow_back, size: 18),
@@ -912,9 +869,10 @@ class _PathBar extends ConsumerWidget {
                         },
                         child: Text("${e.value}  /  ",
                             style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
+                                color: colorScheme.onSurface,
                                 fontSize: 13,
-                                fontWeight: FontWeight.w500)),
+                                fontWeight: FontWeight.w500,
+                                shadows: _tabTextShadow(context))),
                       );
                     }),
                   ])),
@@ -922,7 +880,8 @@ class _PathBar extends ConsumerWidget {
           ),
           if (showWindowControls && isDesktopPlatform) ...[
             IconButton(
-                icon: Icon(Icons.remove, size: 16, color: colorScheme.onSurface),
+                icon:
+                    Icon(Icons.remove, size: 16, color: colorScheme.onSurface),
                 onPressed: () => windowManager.minimize()),
             IconButton(
                 icon: Icon(Icons.crop_square,
@@ -940,6 +899,21 @@ class _PathBar extends ConsumerWidget {
           ],
         ]));
   }
+}
+
+// タブ帯はビューア中、ブラーされた任意の書籍ページの上に重ねて表示される
+// ため、文字色とパネルの下地だけでは背景次第でコントラストが不足し、
+// 「ぼやけて」見えることがある。反対色の縁取り(シャドウ)を常に足すことで、
+// 下地の明暗に関わらず輪郭をはっきりさせる
+List<Shadow> _tabTextShadow(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return [
+    Shadow(
+        color: isDark
+            ? Colors.black.withValues(alpha: 0.8)
+            : Colors.white.withValues(alpha: 0.9),
+        blurRadius: 3),
+  ];
 }
 
 class _TabWidget extends ConsumerWidget {
@@ -963,9 +937,11 @@ class _TabWidget extends ConsumerWidget {
           margin: const EdgeInsets.only(top: 4, right: 4),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
+              // アクティブなタブはsurface（周囲の背景と同系色で埋没しがち）ではなく、
+              // 常にコントラストが取れるinverseSurfaceで確実に目立たせる
               color: active
-                  ? colorScheme.surface
-                  : colorScheme.onSurface.withOpacity(0.06),
+                  ? colorScheme.inverseSurface
+                  : colorScheme.onSurface.withValues(alpha: 0.16),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(6))),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -975,15 +951,20 @@ class _TabWidget extends ConsumerWidget {
                     style: TextStyle(
                         fontSize: 11,
                         color: active
-                            ? colorScheme.onSurface
-                            : colorScheme.onSurfaceVariant,
+                            ? colorScheme.onInverseSurface
+                            : colorScheme.onSurface,
                         fontWeight:
-                            active ? FontWeight.bold : FontWeight.normal),
+                            active ? FontWeight.bold : FontWeight.w500,
+                        shadows: active ? null : _tabTextShadow(context)),
                     overflow: TextOverflow.ellipsis)),
             const SizedBox(width: 6),
             GestureDetector(
                 onTap: () => tabNotifier.closeTab(index),
-                child: Icon(Icons.close, size: 13, color: colorScheme.onSurfaceVariant)),
+                child: Icon(Icons.close,
+                    size: 13,
+                    color: active
+                        ? colorScheme.onInverseSurface
+                        : colorScheme.onSurfaceVariant)),
           ]),
         ),
       ),
@@ -1014,7 +995,9 @@ class _VerticalTabStrip extends StatelessWidget {
                   return _NewTabButton(notifier: notifier);
                 }
                 return _VerticalTabWidget(
-                    item: tabState.tabs[index], index: index, notifier: notifier);
+                    item: tabState.tabs[index],
+                    index: index,
+                    notifier: notifier);
               },
             ),
           ),
@@ -1040,10 +1023,14 @@ class _NewTabButton extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Row(children: [
-          Icon(Icons.add, size: 18, color: colorScheme.onSurfaceVariant),
+          Icon(Icons.add, size: 18, color: colorScheme.onSurface),
           const SizedBox(width: 8),
           Text('新しいタブ',
-              style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                  shadows: _tabTextShadow(context))),
         ]),
       ),
     );
@@ -1073,9 +1060,11 @@ class _VerticalTabWidget extends ConsumerWidget {
           margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
+              // アクティブなタブはsurface（周囲の背景と同系色で埋没しがち）ではなく、
+              // 常にコントラストが取れるinverseSurfaceで確実に目立たせる
               color: active
-                  ? colorScheme.surface
-                  : colorScheme.onSurface.withOpacity(0.06),
+                  ? colorScheme.inverseSurface
+                  : colorScheme.onSurface.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(6)),
           child: Row(children: [
             Expanded(
@@ -1083,16 +1072,20 @@ class _VerticalTabWidget extends ConsumerWidget {
                     style: TextStyle(
                         fontSize: 12,
                         color: active
-                            ? colorScheme.onSurface
-                            : colorScheme.onSurfaceVariant,
+                            ? colorScheme.onInverseSurface
+                            : colorScheme.onSurface,
                         fontWeight:
-                            active ? FontWeight.bold : FontWeight.normal),
+                            active ? FontWeight.bold : FontWeight.w500,
+                        shadows: active ? null : _tabTextShadow(context)),
                     overflow: TextOverflow.ellipsis)),
             const SizedBox(width: 4),
             GestureDetector(
                 onTap: () => notifier.closeTab(index),
                 child: Icon(Icons.close,
-                    size: 13, color: colorScheme.onSurfaceVariant)),
+                    size: 13,
+                    color: active
+                        ? colorScheme.onInverseSurface
+                        : colorScheme.onSurface)),
           ]),
         ),
       ),
