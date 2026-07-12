@@ -28,9 +28,15 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   // 下部メニューバーのスライド(showUI)をAnimationControllerで駆動する。
   // ガラス効果(BackdropFilter)はスライド中の毎フレーム再計算が非常に重いため、
   // スライド中はブラー無しの不透明背景に切り替え、静止した時だけガラスにする
-  // （サイドバーで実際に発生したジャンクと同じ原因を先回りして回避する）
-  late final AnimationController _menuAnim =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
+  // （サイドバーで実際に発生したジャンクと同じ原因を先回りして回避する）。
+  // 200msだと速すぎて動きが目に留まらなかったため、体感できる速さまで伸ばし、
+  // イージングも付けて動き自体をはっきりさせる
+  late final AnimationController _menuAnim = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 8000));
+  late final Animation<double> _menuCurve = CurvedAnimation(
+      parent: _menuAnim,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic);
   bool? _wasShowUI;
 
   // フォーカスはタブがアクティブになった時と画面タップ時(onTapUp)のみ取得する。
@@ -204,9 +210,9 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
               ),
             ),
             AnimatedBuilder(
-              animation: _menuAnim,
+              animation: _menuCurve,
               builder: (context, _) {
-                final t = _menuAnim.value;
+                final t = _menuCurve.value;
                 final atRest = t == 0.0 || t == 1.0;
                 return Positioned(
                   bottom: -130 + 130 * t,
@@ -231,60 +237,57 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     final bool isLeftToNext =
         settings.pageDirection == PageDirection.leftToNext;
     final content = Column(children: [
-        SizedBox(
-          height: 30,
-          child: Stack(children: [
-            Positioned(
-              left: 16,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Text('${state.totalPages}',
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 18)),
-              ),
+      SizedBox(
+        height: 30,
+        child: Stack(children: [
+          Positioned(
+            left: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Text('${state.totalPages}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 18)),
             ),
-            Positioned(
-              right: 16,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Text('${state.currentPage + 1}',
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 18)),
-              ),
+          ),
+          Positioned(
+            right: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Text('${state.currentPage + 1}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 18)),
             ),
-          ]),
-        ),
-        Directionality(
-            textDirection: isLeftToNext ? TextDirection.rtl : TextDirection.ltr,
-            child: Slider(
-                value: state.currentPage.toDouble(),
-                max:
-                    (state.totalPages - 1).toDouble().clamp(0, double.infinity),
-                onChanged: (v) => notifier.jumpToPage(v.toInt()))),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          IconButton(
-              tooltip: isLeftToNext ? '最後のページへ' : '最初のページへ',
-              icon: const Icon(Icons.skip_previous, color: Colors.white),
-              onPressed: () =>
-                  notifier.jumpToPage(isLeftToNext ? state.totalPages - 1 : 0)),
-          IconButton(
-              tooltip: isLeftToNext ? '最初のページへ' : '最後のページへ',
-              icon: const Icon(Icons.skip_next, color: Colors.white),
-              onPressed: () =>
-                  notifier.jumpToPage(isLeftToNext ? 0 : state.totalPages - 1)),
-          const SizedBox(width: 40),
-          IconButton(
-              tooltip: isLeftToNext ? '次の本へ' : '前の本へ',
-              icon: _bookNavIcon(isNext: isLeftToNext),
-              onPressed: () => notifier.switchBook(isLeftToNext)),
-          IconButton(
-              tooltip: isLeftToNext ? '前の本へ' : '次の本へ',
-              icon: _bookNavIcon(isNext: !isLeftToNext),
-              onPressed: () => notifier.switchBook(!isLeftToNext)),
+          ),
         ]),
-      ]);
+      ),
+      Directionality(
+          textDirection: isLeftToNext ? TextDirection.rtl : TextDirection.ltr,
+          child: Slider(
+              value: state.currentPage.toDouble(),
+              max: (state.totalPages - 1).toDouble().clamp(0, double.infinity),
+              onChanged: (v) => notifier.jumpToPage(v.toInt()))),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        IconButton(
+            tooltip: isLeftToNext ? '最後のページへ' : '最初のページへ',
+            icon: const Icon(Icons.skip_previous, color: Colors.white),
+            onPressed: () =>
+                notifier.jumpToPage(isLeftToNext ? state.totalPages - 1 : 0)),
+        IconButton(
+            tooltip: isLeftToNext ? '最初のページへ' : '最後のページへ',
+            icon: const Icon(Icons.skip_next, color: Colors.white),
+            onPressed: () =>
+                notifier.jumpToPage(isLeftToNext ? 0 : state.totalPages - 1)),
+        const SizedBox(width: 40),
+        IconButton(
+            tooltip: isLeftToNext ? '次の本へ' : '前の本へ',
+            icon: _bookNavIcon(isNext: isLeftToNext),
+            onPressed: () => notifier.switchBook(isLeftToNext)),
+        IconButton(
+            tooltip: isLeftToNext ? '前の本へ' : '次の本へ',
+            icon: _bookNavIcon(isNext: !isLeftToNext),
+            onPressed: () => notifier.switchBook(!isLeftToNext)),
+      ]),
+    ]);
 
     return RepaintBoundary(
       child: ClipRRect(
@@ -304,8 +307,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(18)),
                     border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        width: 1),
+                        color: Colors.white.withValues(alpha: 0.16), width: 1),
                   ),
                 ),
               )

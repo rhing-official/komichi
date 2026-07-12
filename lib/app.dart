@@ -93,8 +93,22 @@ class TabShell extends ConsumerStatefulWidget {
   ConsumerState<TabShell> createState() => _TabShellState();
 }
 
-class _TabShellState extends ConsumerState<TabShell> {
+class _TabShellState extends ConsumerState<TabShell>
+    with SingleTickerProviderStateMixin {
   final FocusNode _focusNode = FocusNode();
+
+  // パスバーのビューア重ね表示時の表示/非表示(Space)はopacityの瞬間切替では
+  // なく、サイドバー・メニューバーと同じスライドアニメーションで駆動する。
+  // ガラス効果(BackdropFilter)はスライド中は外し、静止した時だけ有効にする。
+  // 220msだと速すぎて動きが目に留まらなかったため、体感できる速さまで伸ばし、
+  // イージングも付けて動き自体をはっきりさせる
+  late final AnimationController _pathBarAnim = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 8000));
+  late final Animation<double> _pathBarCurve = CurvedAnimation(
+      parent: _pathBarAnim,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic);
+  bool? _wasDimChrome;
 
   @override
   void initState() {
@@ -123,6 +137,7 @@ class _TabShellState extends ConsumerState<TabShell> {
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onGlobalKey);
     _focusNode.dispose();
+    _pathBarAnim.dispose();
     super.dispose();
   }
 
@@ -218,6 +233,10 @@ class _TabShellState extends ConsumerState<TabShell> {
     // 本文の上に重ねるオーバーレイとして描画する。表示/非表示(Space)は
     // オーバーレイの不透明度(0 or 0.85)だけを切り替える
     final dimChrome = isBookOpen && bookShowUI;
+    if (_wasDimChrome != dimChrome) {
+      _wasDimChrome = dimChrome;
+      dimChrome ? _pathBarAnim.forward() : _pathBarAnim.reverse();
+    }
 
     // フルスクリーン切り替えの監視をサイドエフェクトとして分離。
     // 「常に全画面」設定時は書籍を開いていなくても全画面を維持する
@@ -272,8 +291,8 @@ class _TabShellState extends ConsumerState<TabShell> {
                   preferredSize: Size.fromHeight(chromeBarHeight),
                   child: GlassPanel(
                     // ビューワー時のオーバーレイ表示と形を統一する（下側のみ角丸）
-                    borderRadius:
-                        const BorderRadius.vertical(bottom: Radius.circular(18)),
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(18)),
                     child: isVerticalTabs
                         ? const _PathBar(showWindowControls: true)
                         : _buildChromeBar(tabState, notifier, colorScheme),
@@ -290,26 +309,41 @@ class _TabShellState extends ConsumerState<TabShell> {
                       overlayMode: true,
                       dimChrome: dimChrome,
                       chromeBarHeight: chromeBarHeight),
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: IgnorePointer(
-                      ignoring: !dimChrome,
-                      child: Opacity(
-                        opacity: dimChrome ? 0.85 : 0.0,
-                        child: SizedBox(
+                  AnimatedBuilder(
+                    animation: _pathBarCurve,
+                    builder: (context, _) {
+                      final t = _pathBarCurve.value;
+                      final atRest = t == 0.0 || t == 1.0;
+                      const radius =
+                          BorderRadius.vertical(bottom: Radius.circular(18));
+                      return Positioned(
+                        top: -chromeBarHeight + chromeBarHeight * t,
+                        left: 0,
+                        right: 0,
+                        // Opacityによるフェードは大きな半透明レイヤーの毎フレーム
+                        // 合成(saveLayer)が非常に重いため使わない。画面外へスライド
+                        // させるだけで見た目上は同じく「消える」ため、その分だけで十分
+                        child: IgnorePointer(
+                          ignoring: !dimChrome,
+                          child: SizedBox(
                             height: chromeBarHeight,
-                            child: GlassPanel(
-                              borderRadius: const BorderRadius.vertical(
-                                  bottom: Radius.circular(18)),
-                              child: isVerticalTabs
-                                  ? const _PathBar(showWindowControls: true)
-                                  : _buildChromeBar(
-                                      tabState, notifier, colorScheme),
-                            )),
-                      ),
-                    ),
+                            child: RepaintBoundary(
+                              child: ClipRRect(
+                                borderRadius: radius,
+                                child: Stack(fit: StackFit.expand, children: [
+                                  PanelBackground(
+                                      glass: atRest, borderRadius: radius),
+                                  isVerticalTabs
+                                      ? const _PathBar(showWindowControls: true)
+                                      : _buildChromeBar(
+                                          tabState, notifier, colorScheme),
+                                ]),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ])
               : _MainArea(
@@ -418,11 +452,28 @@ const double _kVerticalTabWidth = 200;
 const double _kOverlayGap = 10;
 
 class _MainAreaState extends ConsumerState<_MainArea>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _hover = false;
   bool _keyboardExpanded = false;
+  // 220msだと速すぎて動きが目に留まらなかったため、体感できる速さまで伸ばし、
+  // イージングも付けて動き自体をはっきりさせる
   late final AnimationController _expandAnim = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 220));
+      vsync: this, duration: const Duration(milliseconds: 8000));
+  late final Animation<double> _expandCurve = CurvedAnimation(
+      parent: _expandAnim,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic);
+
+  // ビューア重ね表示中のサイドバー・垂直タブ帯の表示/非表示(Space)を、
+  // opacityの瞬間切替ではなくスライドアニメーションで駆動する
+  late final AnimationController _dimAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 8000),
+      value: widget.dimChrome ? 1.0 : 0.0);
+  late final Animation<double> _dimCurve = CurvedAnimation(
+      parent: _dimAnim,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic);
 
   // リサイズ中フラグはガラス⇔軽量背景の切り替えに使うが、リサイズの開始/終了は
   // アニメーションのティックを伴わない（既に全展開状態のまま起きる）ため、
@@ -454,8 +505,17 @@ class _MainAreaState extends ConsumerState<_MainArea>
   }
 
   @override
+  void didUpdateWidget(covariant _MainArea oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.overlayMode && oldWidget.dimChrome != widget.dimChrome) {
+      widget.dimChrome ? _dimAnim.forward() : _dimAnim.reverse();
+    }
+  }
+
+  @override
   void dispose() {
     _expandAnim.dispose();
+    _dimAnim.dispose();
     _resizingN.dispose();
     super.dispose();
   }
@@ -483,11 +543,9 @@ class _MainAreaState extends ConsumerState<_MainArea>
         }).toList());
 
     // ビューワーを開いている間、サイドバー・垂直タブ帯はSpace(dimChrome)で
-    // 表示/非表示を切り替える。表示時の見た目はパスバー・ビューアのメニュー
-    // バーと同じガラス効果＋同じ透過率(0.85)に統一する（glassEnabledの計算も
-    // 同様、overlayMode中だけ特別扱いしない）
-    final chromeOpacity =
-        !widget.overlayMode ? 1.0 : (widget.dimChrome ? 1.0 : 0.0);
+    // 表示/非表示を切り替える。実際の不透明度・スライド位置は_dimAnimの
+    // ティック（builder内）で毎フレーム計算する。ヒットテストの可否だけは
+    // アニメーションを待たず即座に切り替える
     final chromeInteractive = !widget.overlayMode || widget.dimChrome;
     final isLeft = widget.sidebarPosition == SidebarPosition.left;
     final colorScheme = Theme.of(context).colorScheme;
@@ -670,14 +728,18 @@ class _MainAreaState extends ConsumerState<_MainArea>
         child: Consumer(builder: (context, ref, _) {
           final width = ref.watch(sidebarWidthProvider);
           return AnimatedBuilder(
-            animation: Listenable.merge([_expandAnim, _resizingN]),
+            animation: Listenable.merge([_expandCurve, _resizingN, _dimCurve]),
             builder: (context, _) {
               // ★buildのローカル変数を参照すると次のsetStateまで値が固定される
               // ため、ホバー状態等はここで毎ティック、フィールドから再計算する
-              final t = _expandAnim.value;
+              final t = _expandCurve.value;
               final expandedNow =
                   _hover || _resizingN.value || _keyboardExpanded;
-              final atRest = t == 0.0 || t == 1.0;
+              // 通常表示（overlayModeでない）ではdimAnimは常に1.0（常時表示）扱い。
+              // ビューア重ね表示時のみSpace(dimChrome)でこの値がアニメーションする
+              final dimT = widget.overlayMode ? _dimCurve.value : 1.0;
+              final atRest =
+                  (t == 0.0 || t == 1.0) && (dimT == 0.0 || dimT == 1.0);
               // パスバー・メニューバーと同じガラス効果に統一する
               // （ビューア中だけ特別に無効化しない）
               final glassEnabled = atRest && !_resizingN.value;
@@ -687,6 +749,10 @@ class _MainAreaState extends ConsumerState<_MainArea>
                   ? sidebarEffectiveWidth
                   : 0.0;
               final panelPos = ui.lerpDouble(-width, sidebarInset, t)!;
+              // Space非表示時は、opacityの瞬間切替ではなく自分の幅ぶん画面端の
+              // 外へスライドさせる。isLeft/verticalTabsLeftの向きに応じて
+              // 「外側」方向（left側ならマイナス、right側ならプラス）へ押し出す
+              final dimSlide = (1 - dimT);
 
               // 背景（ガラス⇔軽量）の切替は_PanelBackground内部で行い、childの
               // ツリー位置と型は常に不変に保つ。ラッパーの型ごと差し替えると
@@ -710,16 +776,23 @@ class _MainAreaState extends ConsumerState<_MainArea>
                 Positioned(
                   top: chromeTop,
                   bottom: chromeBottom,
-                  left: isLeft ? sidebarInset : null,
-                  right: isLeft ? null : sidebarInset,
+                  left: isLeft
+                      ? sidebarInset - dimSlide * _kSidebarCollapsedWidth
+                      : null,
+                  right: isLeft
+                      ? null
+                      : sidebarInset - dimSlide * _kSidebarCollapsedWidth,
                   width: _kSidebarCollapsedWidth,
                   child: MouseRegion(
                     onEnter: (_) => _setHover(true),
                     onExit: (_) => _setHover(false),
+                    // Space非表示時はスライドで画面外へ出るため不透明度は不要。
+                    // ホバー展開時のクロスフェード(1-t)のみOpacityを使う（大きな
+                    // 半透明レイヤー合成を避けるため、極力ここだけに絞る）
                     child: IgnorePointer(
                       ignoring: !chromeInteractive || expandedNow,
                       child: Opacity(
-                        opacity: chromeOpacity * (1 - t),
+                        opacity: 1 - t,
                         child: panel(collapsedRail, railRadius),
                       ),
                     ),
@@ -729,18 +802,17 @@ class _MainAreaState extends ConsumerState<_MainArea>
                 Positioned(
                   top: chromeTop,
                   bottom: chromeBottom,
-                  left: isLeft ? panelPos : null,
-                  right: isLeft ? null : panelPos,
+                  left: isLeft ? panelPos - dimSlide * width : null,
+                  right: isLeft ? null : panelPos - dimSlide * width,
                   width: width,
                   child: MouseRegion(
                     onEnter: (_) => _setHover(true),
                     onExit: (_) => _setHover(false),
+                    // Opacityは使わない（Space非表示時はスライドだけで画面外に
+                    // 出るため、大きな半透明レイヤー合成を避けられる）
                     child: IgnorePointer(
                       ignoring: !chromeInteractive,
-                      child: Opacity(
-                        opacity: chromeOpacity,
-                        child: panel(expandedContent, railRadius),
-                      ),
+                      child: panel(expandedContent, railRadius),
                     ),
                   ),
                 ),
@@ -750,25 +822,28 @@ class _MainAreaState extends ConsumerState<_MainArea>
                   Positioned(
                     top: chromeTop,
                     bottom: chromeBottom,
-                    left: verticalTabsLeft ? tabStripInset : null,
-                    right: verticalTabsLeft ? null : tabStripInset,
+                    left: verticalTabsLeft
+                        ? tabStripInset - dimSlide * _kVerticalTabWidth
+                        : null,
+                    right: verticalTabsLeft
+                        ? null
+                        : tabStripInset - dimSlide * _kVerticalTabWidth,
                     width: _kVerticalTabWidth,
+                    // Opacityは使わない（Space非表示時はスライドだけで画面外に
+                    // 出るため、大きな半透明レイヤー合成を避けられる）
                     child: IgnorePointer(
                       ignoring: !chromeInteractive,
-                      child: Opacity(
-                        opacity: chromeOpacity,
-                        child: panel(
-                          _VerticalTabStrip(
-                              tabState: widget.tabState,
-                              notifier: widget.tabNotifier),
-                          BorderRadius.horizontal(
-                            right: verticalTabsLeft
-                                ? const Radius.circular(18)
-                                : Radius.zero,
-                            left: verticalTabsLeft
-                                ? Radius.zero
-                                : const Radius.circular(18),
-                          ),
+                      child: panel(
+                        _VerticalTabStrip(
+                            tabState: widget.tabState,
+                            notifier: widget.tabNotifier),
+                        BorderRadius.horizontal(
+                          right: verticalTabsLeft
+                              ? const Radius.circular(18)
+                              : Radius.zero,
+                          left: verticalTabsLeft
+                              ? Radius.zero
+                              : const Radius.circular(18),
                         ),
                       ),
                     ),
@@ -953,8 +1028,7 @@ class _TabWidget extends ConsumerWidget {
                         color: active
                             ? colorScheme.onInverseSurface
                             : colorScheme.onSurface,
-                        fontWeight:
-                            active ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: active ? FontWeight.bold : FontWeight.w500,
                         shadows: active ? null : _tabTextShadow(context)),
                     overflow: TextOverflow.ellipsis)),
             const SizedBox(width: 6),
@@ -1074,8 +1148,7 @@ class _VerticalTabWidget extends ConsumerWidget {
                         color: active
                             ? colorScheme.onInverseSurface
                             : colorScheme.onSurface,
-                        fontWeight:
-                            active ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: active ? FontWeight.bold : FontWeight.w500,
                         shadows: active ? null : _tabTextShadow(context)),
                     overflow: TextOverflow.ellipsis)),
             const SizedBox(width: 4),
