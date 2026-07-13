@@ -227,6 +227,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             settings.copyWith(launchTabBehavior: val);
                     },
                   ),
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text('設定・お気に入りアイコンの動作',
+                        style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                  RadioListTile<SettingsFavoritesOpenMode>(
+                    title: const Text('別タブで開く'),
+                    subtitle: const Text('既に開いていればそのタブに切り替えます'),
+                    value: SettingsFavoritesOpenMode.newTab,
+                    groupValue: settings.settingsFavoritesOpenMode,
+                    onChanged: (val) {
+                      if (val != null)
+                        notifier.state =
+                            settings.copyWith(settingsFavoritesOpenMode: val);
+                    },
+                  ),
+                  RadioListTile<SettingsFavoritesOpenMode>(
+                    title: const Text('現在のタブ内で切り替える'),
+                    subtitle: const Text('もう一度アイコンをタップすると、切り替え前に表示していたページに戻ります'),
+                    value: SettingsFavoritesOpenMode.toggleInPlace,
+                    groupValue: settings.settingsFavoritesOpenMode,
+                    onChanged: (val) {
+                      if (val != null)
+                        notifier.state =
+                            settings.copyWith(settingsFavoritesOpenMode: val);
+                    },
+                  ),
                   if (!isMobilePlatform) ...[
                     const Divider(),
                     Padding(

@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import '../providers/library_provider.dart';
 import '../../../core/providers/tab_provider.dart';
 import '../../../core/utils/library_search.dart';
+import '../../../core/utils/book_path_utils.dart';
 
 // デスクトップのサイドバー検索欄の代替。モバイルではサイドバー自体が無いため、
 // ポップアップの検索アイコンから独立した全画面ページとして開く
@@ -52,10 +52,9 @@ class _MobileSearchScreenState extends ConsumerState<MobileSearchScreen> {
               : ListView(children: [
                   for (final (shelf, path) in results.folders)
                     Builder(builder: (context) {
-                      final fName = p.basename(path);
-                      final rel = p.relative(path, from: shelf.folderPath);
+                      final fName = folderDisplayName(path);
                       final relParts =
-                          rel == '.' ? <String>[] : rel.split(p.separator);
+                          relativeFolderSegments(path, shelf.folderPath);
                       final segments = ['トップ', shelf.name, ...relParts];
                       return ListTile(
                         leading: Icon(Icons.folder, color: colorScheme.onSurface),

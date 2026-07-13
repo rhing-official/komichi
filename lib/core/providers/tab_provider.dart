@@ -205,6 +205,66 @@ class TabNotifier extends StateNotifier<TabState> {
     ], currentIndex: state.tabs.length);
   }
 
+  // 設定/お気に入りアイコンが押された時の実際の窓口。設定の
+  // settingsFavoritesOpenModeに応じて「専用タブを開く/切り替える」
+  // （従来の挙動）と「現在のタブ内でその場に切り替え、再度押すと戻る」を
+  // 切り替える
+  void openOrToggleSettings() {
+    ref.read(settingsProvider).settingsFavoritesOpenMode ==
+            SettingsFavoritesOpenMode.toggleInPlace
+        ? _toggleInPlace(toSettings: true)
+        : openSettings();
+  }
+
+  void openOrToggleFavorites() {
+    ref.read(settingsProvider).settingsFavoritesOpenMode ==
+            SettingsFavoritesOpenMode.toggleInPlace
+        ? _toggleInPlace(toSettings: false)
+        : openFavorites();
+  }
+
+  // 現在のタブ内で設定/お気に入りとその手前の表示を行き来するトグル。
+  // navigateTo()/openBook()と同じ「現在位置以降の履歴を切り詰めてpush」
+  // パターンで積むため、既にpush済み（isSettings/isFavoritesがtrue）の
+  // 状態でもう一度呼ばれたら、単にundo()でひとつ前の履歴に戻ればよい。
+  // ただし、openSettings()/openFavorites()（専用タブを開く従来動作）で
+  // 作られたタブは常にhistoryIndex=0（履歴を積まない）のまま
+  // isSettings/isFavoritesがtrueになっているため、そのようなタブで
+  // トグルモードに切り替えて押した場合はundo()の戻り先が無く無反応に
+  // なってしまう。この場合は「戻る先が無い＝このタブに元々何も
+  // 表示されていなかった」とみなし、本棚のトップへ遷移させる
+  void _toggleInPlace({required bool toSettings}) {
+    final current = state.tabs[state.currentIndex];
+    final alreadyThere = toSettings ? current.isSettings : current.isFavorites;
+    if (alreadyThere) {
+      if (current.historyIndex > 0) {
+        undo();
+      } else {
+        navigateTo(null, segments: const ['トップ']);
+      }
+      return;
+    }
+    final newTabs = [...state.tabs];
+    final newHistory = List<Map<String, dynamic>>.from(
+        current.history.sublist(0, current.historyIndex + 1));
+    final title = toSettings ? '設定' : 'お気に入り';
+    newHistory.add({
+      'isSettings': toSettings,
+      'isFavorites': !toSettings,
+      'title': title,
+      'segments': ['トップ', title],
+    });
+    newTabs[state.currentIndex] = TabItem(
+        id: current.id,
+        title: title,
+        isSettings: toSettings,
+        isFavorites: !toSettings,
+        segments: ['トップ', title],
+        history: newHistory,
+        historyIndex: newHistory.length - 1);
+    state = TabState(tabs: newTabs, currentIndex: state.currentIndex);
+  }
+
   void navigateTo(String? shelfId,
       {String? path,
       String? title,
@@ -276,15 +336,30 @@ class TabNotifier extends StateNotifier<TabState> {
       ], currentIndex: stay ? state.currentIndex : state.tabs.length);
     } else {
       final newTabs = [...state.tabs];
+      final current = newTabs[state.currentIndex];
+      final resolvedShelfId = currentShelfId ?? current.shelfId;
+      final resolvedPath = currentPath ?? current.path;
+      // navigateTo()同様、本を開く操作もタブ内履歴に積む。これにより
+      // ビューアの「戻る/進む」アイコン（undo/redo）が他のページと同じように
+      // 反応するようになる（積まないと戻り先が無く常に無効化されたままだった）
+      final newHistory = List<Map<String, dynamic>>.from(
+          current.history.sublist(0, current.historyIndex + 1));
+      newHistory.add({
+        'shelfId': resolvedShelfId,
+        'path': resolvedPath,
+        'title': title,
+        'segments': finalSegments,
+        'bookId': bookId,
+      });
       newTabs[state.currentIndex] = TabItem(
-          id: state.tabs[state.currentIndex].id,
+          id: current.id,
           title: title,
           bookId: bookId,
-          shelfId: currentShelfId ?? state.tabs[state.currentIndex].shelfId,
-          path: currentPath ?? state.tabs[state.currentIndex].path,
+          shelfId: resolvedShelfId,
+          path: resolvedPath,
           segments: finalSegments,
-          history: state.tabs[state.currentIndex].history,
-          historyIndex: state.tabs[state.currentIndex].historyIndex);
+          history: newHistory,
+          historyIndex: newHistory.length - 1);
       state = TabState(tabs: newTabs, currentIndex: state.currentIndex);
     }
   }
@@ -334,6 +409,8 @@ class TabNotifier extends StateNotifier<TabState> {
         path: h['path'],
         segments: h['segments'] ?? ['トップ'],
         bookId: h['bookId'],
+        isSettings: h['isSettings'] ?? false,
+        isFavorites: h['isFavorites'] ?? false,
         history: state.tabs[state.currentIndex].history,
         historyIndex: idx);
     state = TabState(tabs: newTabs, currentIndex: state.currentIndex);

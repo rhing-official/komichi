@@ -3,25 +3,30 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'file_service.dart';
 
 class CbzService {
   static const _supportedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
 
   /// CBZ内のComicInfo.xmlから<Number>タグの値を読み取る（無ければnull）
   Future<double?> readComicInfoNumber(String filePath) async {
+    InputFileStream? stream;
     try {
-      final bytes = await File(filePath).readAsBytes();
-      final archive = ZipDecoder().decodeBytes(bytes);
+      final file = await FileService.materializeLocalFile(filePath);
+      stream = InputFileStream(file.path);
+      final archive = ZipDecoder().decodeStream(stream);
       final entry = archive.files.firstWhere(
         (f) => f.isFile && p.basename(f.name).toLowerCase() == 'comicinfo.xml',
       );
-      final xmlContent = utf8.decode(entry.content as List<int>);
+      final xmlContent = utf8.decode(entry.content);
       final match =
           RegExp(r'<Number>(.*?)</Number>', dotAll: true).firstMatch(xmlContent);
       if (match == null) return null;
       return double.tryParse(match.group(1)!.trim());
     } catch (_) {
       return null;
+    } finally {
+      await stream?.close();
     }
   }
 
@@ -40,7 +45,7 @@ class CbzService {
     await extractDir.create(recursive: true);
 
     // archive 3.x: ファイルをバイト列として読み込んでデコード
-    final bytes = await File(filePath).readAsBytes();
+    final bytes = await FileService.readBytes(filePath);
     final archive = ZipDecoder().decodeBytes(bytes);
 
     for (final file in archive.files) {

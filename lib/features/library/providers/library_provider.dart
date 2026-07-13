@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
-import 'package:path/path.dart' as p;
 import '../models/book.dart';
 import '../models/shelf.dart';
 import '../../../core/services/file_service.dart';
 import '../../../core/services/thumbnail_service.dart';
 import '../../../core/services/cbz_service.dart';
 import '../../../core/utils/sort_utils.dart';
+import '../../../core/utils/book_path_utils.dart';
 
 class LibraryState {
   final List<Book> books;
@@ -61,24 +61,26 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     for (final shelf in shelfBox.values.toList()) {
       try {
         final actualFiles = await _fileService.scanFolder(shelf.folderPath);
+        final actualPaths = actualFiles.map((f) => f.path).toSet();
         final dbBooks =
             bookBox.values.where((b) => b.shelfId == shelf.id).toList();
         debugPrint(
             '[Sync] 本棚「${shelf.name}」: フォルダ内${actualFiles.length}件 / DB登録${dbBooks.length}件');
-        for (final fPath in actualFiles) {
-          if (!dbBooks.any((b) => b.filePath == fPath)) {
+        for (final entry in actualFiles) {
+          if (!dbBooks.any((b) => b.filePath == entry.path)) {
             final bId = _uuid.v4();
-            final thumb =
-                await _thumbnailService.generateThumbnail(fPath, bId);
+            final thumb = await _thumbnailService.generateThumbnail(
+                entry.path, bId, entry.ext);
             final format =
-                fPath.endsWith('.pdf') ? BookFormat.pdf : BookFormat.cbz;
+                entry.ext == 'pdf' ? BookFormat.pdf : BookFormat.cbz;
             final number = format == BookFormat.cbz
-                ? await _cbzService.readComicInfoNumber(fPath)
+                ? await _cbzService.readComicInfoNumber(entry.path)
                 : null;
             final book = Book()
               ..id = bId
-              ..title = p.basenameWithoutExtension(fPath)
-              ..filePath = fPath
+              ..title = entry.name
+              ..filePath = entry.path
+              ..relPath = entry.relPath
               ..shelfId = shelf.id
               ..thumbnailPath = thumb
               ..addedAt = DateTime.now()
@@ -89,11 +91,11 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
               ..number = number;
             await bookBox.put(bId, book);
             added++;
-            debugPrint('[Sync] 追加: $fPath');
+            debugPrint('[Sync] 追加: ${entry.path}');
           }
         }
         for (final dbBook in dbBooks) {
-          if (!actualFiles.contains(dbBook.filePath)) {
+          if (!actualPaths.contains(dbBook.filePath)) {
             await bookBox.delete(dbBook.id);
             removed++;
             debugPrint('[Sync] 削除: ${dbBook.filePath}');
@@ -176,9 +178,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     final bookBox = Hive.box<Book>('books');
     final books = bookBox.values
         .where((b) =>
-            b.shelfId == shelfId &&
-            (b.filePath == folderPath ||
-                b.filePath.startsWith(folderPath + p.separator)))
+            b.shelfId == shelfId && bookIsWithinFolder(b, folderPath))
         .toList();
     for (var b in books) {
       await removeBook(b.id);
@@ -190,8 +190,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     if (state.isLoading) return;
     state = state.copyWith(isLoading: true);
     try {
-      final path = await _fileService.pickFolder();
-      if (path == null) {
+      final picked = await _fileService.pickFolder();
+      if (picked == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('フォルダ選択がキャンセルされました')),
@@ -199,9 +199,9 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         }
         return;
       }
-      final shelfId = _fileService.generateShelfId(path);
-      final shelf =
-          Shelf(id: shelfId, name: p.basename(path), folderPath: path);
+      final shelfId = _fileService.generateShelfId(picked.path);
+      final shelf = Shelf(
+          id: shelfId, name: picked.name, folderPath: picked.path);
       await Hive.box<Shelf>('shelves').put(shelfId, shelf);
       await syncAll();
       

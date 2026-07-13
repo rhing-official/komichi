@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:path/path.dart' as p;
 import 'features/library/models/shelf.dart';
 import 'core/utils/platform_utils.dart';
+import 'core/utils/book_path_utils.dart';
 import 'core/widgets/glass_panel.dart';
 import 'core/widgets/tab_content_builder.dart';
 import 'core/widgets/mobile_shell.dart';
@@ -177,7 +177,7 @@ class _TabShellState extends ConsumerState<TabShell>
 
     if (isCtrl) {
       if (key == LogicalKeyboardKey.keyI) {
-        notifier.openSettings();
+        notifier.openOrToggleSettings();
         return true;
       }
       if (key == LogicalKeyboardKey.keyW) {
@@ -185,7 +185,7 @@ class _TabShellState extends ConsumerState<TabShell>
         return true;
       }
       if (key == LogicalKeyboardKey.keyF) {
-        notifier.openFavorites();
+        notifier.openOrToggleFavorites();
         return true;
       }
       if (key == LogicalKeyboardKey.keyS) {
@@ -616,10 +616,8 @@ class _MainAreaState extends ConsumerState<_MainArea>
               itemBuilder: (context, i) {
                 if (i < favFolders.length) {
                   final (s, path) = favFolders[i];
-                  final fName = p.basename(path);
-                  final rel = p.relative(path, from: s.folderPath);
-                  final relParts =
-                      rel == '.' ? <String>[] : rel.split(p.separator);
+                  final fName = folderDisplayName(path);
+                  final relParts = relativeFolderSegments(path, s.folderPath);
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
                     child: Center(

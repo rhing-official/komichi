@@ -92,6 +92,31 @@ enum MiddleClickTabBehavior {
   stayOnCurrentTab,
 }
 
+// ★追加：画面の向き固定（Android専用）。常にこの向きにロックし、端末を
+// 傾けても自動回転しない。一度設定すると再起動しても持続する
+@HiveType(typeId: 13)
+enum ScreenOrientationLock {
+  @HiveField(0)
+  portraitUp,
+  @HiveField(1)
+  landscapeLeft,
+  @HiveField(2)
+  landscapeRight,
+  @HiveField(3)
+  portraitDown,
+}
+
+// ★追加：設定/お気に入りアイコンを押した時の開き方（newTab=専用タブを
+// 開く/切り替える【従来の動作】、toggleInPlace=現在のタブ内でその場に
+// 切り替え、再度同じアイコンを押すと切り替え前の表示に戻る）
+@HiveType(typeId: 14)
+enum SettingsFavoritesOpenMode {
+  @HiveField(0)
+  newTab,
+  @HiveField(1)
+  toggleInPlace,
+}
+
 // モバイル用ナビゲーションポップアップに並べる8アイコンのデフォルト順序
 const List<String> kDefaultMobileNavIconOrder = [
   'back',
@@ -147,6 +172,12 @@ class AppSettings {
   @HiveField(14, defaultValue: <String>[])
   final List<String> mobileNavHiddenIcons;
 
+  @HiveField(15, defaultValue: ScreenOrientationLock.portraitUp)
+  final ScreenOrientationLock screenOrientationLock;
+
+  @HiveField(16, defaultValue: SettingsFavoritesOpenMode.newTab)
+  final SettingsFavoritesOpenMode settingsFavoritesOpenMode;
+
   AppSettings({
     this.pageDirection = PageDirection.leftToNext,
     this.theme = AppTheme.system,
@@ -160,6 +191,8 @@ class AppSettings {
     this.middleClickTabBehavior = MiddleClickTabBehavior.switchToNewTab,
     this.mobileNavIconOrder = kDefaultMobileNavIconOrder,
     this.mobileNavHiddenIcons = const <String>[],
+    this.screenOrientationLock = ScreenOrientationLock.portraitUp,
+    this.settingsFavoritesOpenMode = SettingsFavoritesOpenMode.newTab,
   });
 
   AppSettings copyWith({
@@ -176,6 +209,8 @@ class AppSettings {
     MiddleClickTabBehavior? middleClickTabBehavior,
     List<String>? mobileNavIconOrder,
     List<String>? mobileNavHiddenIcons,
+    ScreenOrientationLock? screenOrientationLock,
+    SettingsFavoritesOpenMode? settingsFavoritesOpenMode,
   }) {
     return AppSettings(
       pageDirection: pageDirection ?? this.pageDirection,
@@ -193,6 +228,10 @@ class AppSettings {
           middleClickTabBehavior ?? this.middleClickTabBehavior,
       mobileNavIconOrder: mobileNavIconOrder ?? this.mobileNavIconOrder,
       mobileNavHiddenIcons: mobileNavHiddenIcons ?? this.mobileNavHiddenIcons,
+      screenOrientationLock:
+          screenOrientationLock ?? this.screenOrientationLock,
+      settingsFavoritesOpenMode:
+          settingsFavoritesOpenMode ?? this.settingsFavoritesOpenMode,
     );
   }
 }

@@ -9,6 +9,7 @@ import '../widgets/read_progress_bar.dart';
 import '../../../core/providers/tab_provider.dart';
 import '../../../core/providers/selection_provider.dart';
 import '../../../core/utils/sort_utils.dart';
+import '../../../core/utils/book_path_utils.dart';
 
 class ShelfScreen extends ConsumerStatefulWidget {
   final String shelfId;
@@ -64,25 +65,19 @@ class _ShelfScreenState extends ConsumerState<ShelfScreen> {
         ref.watch(tabProvider).tabs[ref.watch(tabProvider).currentIndex];
     final shelf = state.shelves.firstWhere((s) => s.id == widget.shelfId,
         orElse: () => state.shelves.first);
-    final currentPath = tab.path ?? shelf.folderPath;
-    final currentBooks = state.books
-        .where((b) =>
-            b.shelfId == widget.shelfId && p.dirname(b.filePath) == currentPath)
+    final currentPath = tab.path ?? shelfRootPath(shelf);
+    final shelfBooks = state.books.where((b) => b.shelfId == widget.shelfId);
+    final currentBooks = shelfBooks
+        .where((b) => bookIsAtFolder(b, currentPath))
         .toList()
       ..sort((a, b) => SortUtils.compareBooks(a, b));
-    final subFolders = state.books
-        .where((b) =>
-            b.shelfId == widget.shelfId &&
-            p.dirname(b.filePath).startsWith(currentPath + p.separator))
-        .map((b) => p.join(
-            currentPath,
-            p
-                .relative(p.dirname(b.filePath), from: currentPath)
-                .split(p.separator)
-                .first))
+    final subFolders = shelfBooks
+        .map((b) => immediateChildFolder(b, currentPath))
+        .whereType<String>()
         .toSet()
         .toList()
-      ..sort((a, b) => SortUtils.compareNatural(p.basename(a), p.basename(b)));
+      ..sort((a, b) =>
+          SortUtils.compareNatural(folderDisplayName(a), folderDisplayName(b)));
 
     final allIds = [...subFolders, ...currentBooks.map((b) => b.id)];
 
@@ -300,15 +295,13 @@ class _FolderItemState extends ConsumerState<_FolderItem> {
     final fName = p.basename(widget.path);
 
     final booksInFolder = state.books.where((b) =>
-        b.shelfId == widget.shelfId &&
-        (b.filePath == widget.path ||
-            b.filePath.startsWith(widget.path + p.separator)));
+        b.shelfId == widget.shelfId && bookIsWithinFolder(b, widget.path));
     final currentShelf = state.shelves.firstWhere((s) => s.id == widget.shelfId,
         orElse: () => state.shelves.first);
     final isAnyFavorite = currentShelf.favoriteFolders.contains(widget.path);
 
     final sortedBooks = booksInFolder.toList()
-      ..sort((a, b) => SortUtils.compareNatural(a.title, b.title));
+      ..sort((a, b) => SortUtils.compareBooks(a, b));
     final thumbBooks = sortedBooks.take(5).toList().reversed.toList();
 
     return MouseRegion(

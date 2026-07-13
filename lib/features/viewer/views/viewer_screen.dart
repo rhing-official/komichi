@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,14 +8,20 @@ import '../providers/viewer_provider.dart';
 import '../../../core/providers/tab_provider.dart';
 import '../../../core/utils/platform_utils.dart';
 import '../../../core/widgets/mobile_nav_popup.dart';
+import '../../../core/utils/system_nav_bar_inset.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../settings/models/app_settings.dart';
 
-// app.dart側でサイドバーがこのメニューと重ならないよう高さを共有する
-const double kViewerBottomMenuHeight = 120;
+// app.dart側でサイドバーがこのメニューと重ならないよう高さを共有する。
+// 120だとページ数表示行+Slider+ページ送りボタン行の実際の高さに対して
+// 6px足りず、デスクトップ・モバイル両方の下部パネルで
+// 「BOTTOM OVERFLOWED BY 6.0 PIXELS」が発生していたため126に修正
+// （以前はモバイル側だけ_kMobileNavRowExtraHeightで個別に帳尻を
+// 合わせていたが、根本原因はプラットフォーム共通のこちら側だった）
+const double kViewerBottomMenuHeight = 126;
 
 // モバイルでは、この下にナビゲーションポップアップの行を同じパネル内に
-// 追加で積む分の高さ（区切り線込み）
+// 追加で積む分の高さ（区切り線とその余白込み）
 const double _kMobileNavRowExtraHeight = kMobileNavPopupHeight + 8;
 
 class ViewerScreen extends ConsumerStatefulWidget {
@@ -55,13 +62,34 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _focusNode.requestFocus();
       });
+      _applyImmersiveModeIfAndroid();
     }
   }
 
   @override
   void didUpdateWidget(covariant ViewerScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.isActive && widget.isActive) _focusNode.requestFocus();
+    if (!oldWidget.isActive && widget.isActive) {
+      _focusNode.requestFocus();
+      _applyImmersiveModeIfAndroid();
+    } else if (oldWidget.isActive && !widget.isActive) {
+      _restoreSystemUiIfAndroid();
+    }
+  }
+
+  // Androidの3ボタン/ジェスチャーナビゲーションバーは、下部メニューの
+  // アイコン行と重なり誤タップの原因になる（実機検証で確認済み）ため、
+  // ビューア表示中はイマーシブモードで隠す。上端から下スワイプすれば
+  // 一時的に再表示できる(immersiveSticky)。デスクトップには存在しない
+  // 概念なのでAndroidのみで行う
+  void _applyImmersiveModeIfAndroid() {
+    if (!Platform.isAndroid) return;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  void _restoreSystemUiIfAndroid() {
+    if (!Platform.isAndroid) return;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   void _handleZoom(PointerScrollEvent event) {
@@ -89,6 +117,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
 
   @override
   void dispose() {
+    if (widget.isActive) _restoreSystemUiIfAndroid();
     _transformationController.dispose();
     _focusNode.dispose();
     _menuAnim.dispose();
@@ -103,6 +132,12 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     final tabNotifier = ref.read(tabProvider.notifier);
     final bool isLeftToNext =
         settings.pageDirection == PageDirection.leftToNext;
+
+    // このタブが実際に表示されている時だけファイルを開いてページ画像を読み込む
+    // （IndexedStackは全タブを同時にbuildするため、isLoadingの判定より先に
+    // ここで呼ばないと、非表示の背景タブは永久にisLoading=trueのまま
+    // ensureActive()に到達できなくなる）
+    if (widget.isActive) notifier.ensureActive();
 
     if (state.isLoading)
       return const Center(child: CircularProgressIndicator());
@@ -158,7 +193,9 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
               return KeyEventResult.handled;
             }
           }
-          if (key == LogicalKeyboardKey.space) {
+          if (key == LogicalKeyboardKey.space ||
+              key == LogicalKeyboardKey.enter ||
+              key == LogicalKeyboardKey.numpadEnter) {
             notifier.toggleUI();
             return KeyEventResult.handled;
           }
@@ -235,8 +272,14 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                 final slideDistance = kViewerBottomMenuHeight +
                     (isMobilePlatform ? _kMobileNavRowExtraHeight : 0.0) +
                     10;
+                // ビューアはシステムナビゲーションバーをイマーシブモードで
+                // 隠しているため、ここでのMediaQuery.padding.bottomは常に0を
+                // 返してしまう。バーがある他のページと下端の座標を揃えるため、
+                // バーが表示されている時にキャッシュされた高さ分だけ持ち上げる
+                final navBarLift =
+                    Platform.isAndroid ? SystemNavBarInset.bottom : 0.0;
                 return Positioned(
-                  bottom: -slideDistance + slideDistance * t,
+                  bottom: -slideDistance + slideDistance * t + navBarLift,
                   left: 0,
                   right: 0,
                   child: _buildBottomMenu(settings, state, notifier,
@@ -307,6 +350,24 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
             tooltip: isLeftToNext ? '前の本へ' : '次の本へ',
             icon: _bookNavIcon(isNext: !isLeftToNext),
             onPressed: () => notifier.switchBook(!isLeftToNext)),
+        // 画面の向き固定はAndroid専用（デスクトップはウィンドウが自由に
+        // リサイズできるフローティングウィンドウで「向き」の概念が無い）。
+        // タップで縦↔左90度をトグルし、長押しで右90度・180度も選べる
+        // （タブレットではどちらの向きで持つか任意なため必須）
+        if (Platform.isAndroid) ...[
+          const SizedBox(width: 8),
+          GestureDetector(
+            onLongPressStart: (details) =>
+                _showOrientationMenu(details.globalPosition),
+            // tooltip未指定: IconButton標準のTooltipは長押しで自身を表示する
+            // ため、指定するとこのGestureDetectorのonLongPressStartと
+            // ジェスチャーが競合し、長押しメニューが開かなくなる
+            child: IconButton(
+                icon: const Icon(Icons.screen_lock_rotation,
+                    color: Colors.white),
+                onPressed: _toggleOrientation),
+          ),
+        ],
       ]),
       // モバイルでは、デスクトップのタブバー・サイドバー・パスバーの機能を
       // 集約したナビゲーションポップアップの行を、別パネルとして重ねるのでは
@@ -369,5 +430,49 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       color: Colors.white,
       size: 32,
     );
+  }
+
+  // タップ1回では縦↔左90度のみをトグルする（最も使う頻度が高い組み合わせ）。
+  // 右90度・180度は長押しメニュー([_showOrientationMenu])からのみ選べる
+  void _toggleOrientation() {
+    final settings = ref.read(settingsProvider);
+    final next =
+        settings.screenOrientationLock == ScreenOrientationLock.portraitUp
+            ? ScreenOrientationLock.landscapeLeft
+            : ScreenOrientationLock.portraitUp;
+    ref.read(settingsProvider.notifier).state =
+        settings.copyWith(screenOrientationLock: next);
+  }
+
+  Future<void> _showOrientationMenu(Offset globalPosition) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final current = ref.read(settingsProvider).screenOrientationLock;
+    final selected = await showMenu<ScreenOrientationLock>(
+      context: context,
+      position: RelativeRect.fromRect(
+          globalPosition & const Size(1, 1), Offset.zero & overlay.size),
+      items: [
+        CheckedPopupMenuItem(
+            value: ScreenOrientationLock.portraitUp,
+            checked: current == ScreenOrientationLock.portraitUp,
+            child: const Text('縦')),
+        CheckedPopupMenuItem(
+            value: ScreenOrientationLock.landscapeLeft,
+            checked: current == ScreenOrientationLock.landscapeLeft,
+            child: const Text('左に90度')),
+        CheckedPopupMenuItem(
+            value: ScreenOrientationLock.landscapeRight,
+            checked: current == ScreenOrientationLock.landscapeRight,
+            child: const Text('右に90度')),
+        CheckedPopupMenuItem(
+            value: ScreenOrientationLock.portraitDown,
+            checked: current == ScreenOrientationLock.portraitDown,
+            child: const Text('180度')),
+      ],
+    );
+    if (selected == null || !mounted) return;
+    final settings = ref.read(settingsProvider);
+    ref.read(settingsProvider.notifier).state =
+        settings.copyWith(screenOrientationLock: selected);
   }
 }

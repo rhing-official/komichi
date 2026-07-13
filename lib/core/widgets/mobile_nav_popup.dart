@@ -108,10 +108,14 @@ class MobileNavIconRow extends ConsumerWidget {
         );
       case 'favorites':
         return _NavAction(
-            icon: icon, label: label, onPressed: tabNotifier.openFavorites);
+            icon: icon,
+            label: label,
+            onPressed: tabNotifier.openOrToggleFavorites);
       case 'settings':
         return _NavAction(
-            icon: icon, label: label, onPressed: tabNotifier.openSettings);
+            icon: icon,
+            label: label,
+            onPressed: tabNotifier.openOrToggleSettings);
       case 'addFolder':
         return _NavAction(
           icon: icon,
@@ -132,12 +136,29 @@ class MobileNavIconRow extends ConsumerWidget {
     final visibleIds = order.where((id) => !hidden.contains(id)).toList();
     final hiddenIds = order.where((id) => hidden.contains(id)).toList();
     final color = iconColor ?? Theme.of(context).colorScheme.onSurface;
+    final tabNotifier = ref.read(tabProvider.notifier);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         for (final id in visibleIds)
-          _NavIconButton(action: _actionFor(context, ref, id), color: color),
+          id == 'tabCount'
+              ? GestureDetector(
+                  // タブ数アイコン上のスワイプでタブ切り替え。左スワイプで
+                  // 前のタブ、右スワイプで次のタブへジャンプする
+                  onHorizontalDragEnd: (details) {
+                    final velocity = details.primaryVelocity ?? 0;
+                    if (velocity < 0) {
+                      tabNotifier.previousTab();
+                    } else if (velocity > 0) {
+                      tabNotifier.nextTab();
+                    }
+                  },
+                  child: _NavIconButton(
+                      action: _actionFor(context, ref, id), color: color),
+                )
+              : _NavIconButton(
+                  action: _actionFor(context, ref, id), color: color),
         if (hiddenIds.isNotEmpty)
           _HamburgerButton(
               hiddenIds: hiddenIds,

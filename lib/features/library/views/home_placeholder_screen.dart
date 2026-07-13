@@ -7,6 +7,7 @@ import '../providers/library_provider.dart';
 import '../../../core/providers/tab_provider.dart';
 import '../../../core/providers/selection_provider.dart';
 import '../../../core/utils/sort_utils.dart';
+import '../../../core/utils/book_path_utils.dart';
 
 class HomePlaceholderScreen extends ConsumerStatefulWidget {
   final bool isActive;
@@ -138,7 +139,7 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
         break;
       case 'newtab':
         ref.read(tabProvider.notifier).navigateTo(widget.shelf.id,
-            path: widget.shelf.folderPath,
+            path: shelfRootPath(widget.shelf),
             title: widget.shelf.name,
             segments: ['トップ', widget.shelf.name],
             openInNewTab: true);
@@ -172,7 +173,7 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
             onPointerDown: (e) {
               if (e.buttons == 4) {
                 ref.read(tabProvider.notifier).navigateTo(widget.shelf.id,
-                    path: widget.shelf.folderPath,
+                    path: shelfRootPath(widget.shelf),
                     title: widget.shelf.name,
                     segments: ['トップ', widget.shelf.name],
                     openInNewTab: true);
@@ -195,7 +196,7 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
                         .selectRange(widget.index, widget.allIds);
                   } else {
                     ref.read(tabProvider.notifier).navigateTo(widget.shelf.id,
-                        path: widget.shelf.folderPath,
+                        path: shelfRootPath(widget.shelf),
                         title: widget.shelf.name,
                         segments: ['トップ', widget.shelf.name]);
                   }

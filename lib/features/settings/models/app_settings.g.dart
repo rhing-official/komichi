@@ -54,13 +54,19 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
           : (fields[13] as List).cast<String>(),
       mobileNavHiddenIcons:
           fields[14] == null ? [] : (fields[14] as List).cast<String>(),
+      screenOrientationLock: fields[15] == null
+          ? ScreenOrientationLock.portraitUp
+          : fields[15] as ScreenOrientationLock,
+      settingsFavoritesOpenMode: fields[16] == null
+          ? SettingsFavoritesOpenMode.newTab
+          : fields[16] as SettingsFavoritesOpenMode,
     );
   }
 
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.pageDirection)
       ..writeByte(2)
@@ -84,7 +90,11 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(13)
       ..write(obj.mobileNavIconOrder)
       ..writeByte(14)
-      ..write(obj.mobileNavHiddenIcons);
+      ..write(obj.mobileNavHiddenIcons)
+      ..writeByte(15)
+      ..write(obj.screenOrientationLock)
+      ..writeByte(16)
+      ..write(obj.settingsFavoritesOpenMode);
   }
 
   @override
@@ -456,6 +466,95 @@ class MiddleClickTabBehaviorAdapter
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is MiddleClickTabBehaviorAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class ScreenOrientationLockAdapter extends TypeAdapter<ScreenOrientationLock> {
+  @override
+  final int typeId = 13;
+
+  @override
+  ScreenOrientationLock read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return ScreenOrientationLock.portraitUp;
+      case 1:
+        return ScreenOrientationLock.landscapeLeft;
+      case 2:
+        return ScreenOrientationLock.landscapeRight;
+      case 3:
+        return ScreenOrientationLock.portraitDown;
+      default:
+        return ScreenOrientationLock.portraitUp;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, ScreenOrientationLock obj) {
+    switch (obj) {
+      case ScreenOrientationLock.portraitUp:
+        writer.writeByte(0);
+        break;
+      case ScreenOrientationLock.landscapeLeft:
+        writer.writeByte(1);
+        break;
+      case ScreenOrientationLock.landscapeRight:
+        writer.writeByte(2);
+        break;
+      case ScreenOrientationLock.portraitDown:
+        writer.writeByte(3);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ScreenOrientationLockAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class SettingsFavoritesOpenModeAdapter
+    extends TypeAdapter<SettingsFavoritesOpenMode> {
+  @override
+  final int typeId = 14;
+
+  @override
+  SettingsFavoritesOpenMode read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return SettingsFavoritesOpenMode.newTab;
+      case 1:
+        return SettingsFavoritesOpenMode.toggleInPlace;
+      default:
+        return SettingsFavoritesOpenMode.newTab;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, SettingsFavoritesOpenMode obj) {
+    switch (obj) {
+      case SettingsFavoritesOpenMode.newTab:
+        writer.writeByte(0);
+        break;
+      case SettingsFavoritesOpenMode.toggleInPlace:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SettingsFavoritesOpenModeAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

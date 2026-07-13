@@ -1,14 +1,14 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:archive/archive.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'package:pdfx/pdfx.dart';
 import '../models/read_state.dart';
 import '../../library/providers/library_provider.dart';
 import '../../library/models/book.dart';
 import '../../../core/providers/tab_provider.dart';
+import '../../../core/services/file_service.dart';
 import '../../../core/utils/sort_utils.dart';
+import '../../../core/utils/book_path_utils.dart';
 
 final viewerProvider =
     StateNotifierProvider.family<ViewerNotifier, ReadState, String>(
@@ -21,14 +21,31 @@ class ViewerNotifier extends StateNotifier<ReadState> {
   final String bookId;
   Archive? _cachedArchive;
   List<ArchiveFile>? _sortedImages;
+  PdfDocument? _pdfDocument;
+  // decodeStream()はページ内容を都度この元ストリームから遅延展開するため、
+  // decode完了後もビューア終了までクローズしてはいけない
+  InputFileStream? _cbzInputStream;
   Uint8List? _currentImageBytes; // ★ 現在の画像データを保持
+
+  bool _initStarted = false;
 
   ViewerNotifier(this.ref, this.bookId)
       : super(ReadState(
             title: '読み込み中...',
             filePath: '',
             format: BookFormat.pdf,
-            isLoading: true)) {
+            isLoading: true));
+  // ★_init()はコンストラクタでは呼ばない。ensureActive()経由でタブが実際に
+  // 表示された時にだけ呼ぶ。IndexedStackは全タブのウィジェットを同時にbuild
+  // するため、コンストラクタで無条件に初期化すると、復元された全てのビューア
+  // タブ（表示されていない背景のタブも含む）が起動直後に一斉にファイルを開いて
+  // ページ画像をデコードしてしまい、実機でネイティブヒープが1GBを超えて
+  // ANR（応答なし）で強制終了される不具合が実機検証で見つかった
+
+  /// タブが実際にアクティブになった時に呼ぶ。二回目以降の呼び出しは無視される
+  void ensureActive() {
+    if (_initStarted) return;
+    _initStarted = true;
     _init();
   }
 
@@ -38,13 +55,13 @@ class ViewerNotifier extends StateNotifier<ReadState> {
       final book = libraryState.books.firstWhere((b) => b.id == bookId);
       int total = 0;
       if (book.format == BookFormat.pdf) {
-        final result = await Process.run('pdfinfo', [book.filePath]);
-        final regExp = RegExp(r'Pages:\s+(\d+)');
-        final match = regExp.firstMatch(result.stdout.toString());
-        total = int.parse(match?.group(1) ?? '0');
+        final file = await FileService.materializeLocalFile(book.filePath);
+        _pdfDocument = await PdfDocument.openFile(file.path);
+        total = _pdfDocument!.pagesCount;
       } else {
-        final bytes = await File(book.filePath).readAsBytes();
-        _cachedArchive = ZipDecoder().decodeBytes(bytes);
+        final file = await FileService.materializeLocalFile(book.filePath);
+        _cbzInputStream = InputFileStream(file.path);
+        _cachedArchive = ZipDecoder().decodeStream(_cbzInputStream!);
         _sortedImages = _cachedArchive!.files
             .where((f) => f.isFile && _isImage(f.name))
             .toList();
@@ -71,7 +88,9 @@ class ViewerNotifier extends StateNotifier<ReadState> {
       ref.read(libraryProvider.notifier).updateReadProgress(
           bookId, resumePage, book.isFinished,
           totalPages: total);
-      _loadCurrentImage(); // 初回ロード
+      // ensureActive()経由でタブがアクティブになった時にだけここまで到達する
+      // ため、ページ画像は即ロードしてよい
+      _loadCurrentImage();
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '読み込み失敗');
     }
@@ -80,26 +99,20 @@ class ViewerNotifier extends StateNotifier<ReadState> {
   // ★ 画像データを非同期で読み込み、stateを更新する
   Future<void> _loadCurrentImage() async {
     Uint8List? bytes;
-    if (state.format == BookFormat.pdf) {
-      final tempDir = await getTemporaryDirectory();
-      final outPathBase =
-          p.join(tempDir.path, 'komichi_p_${state.currentPage}');
-      final imageFile = File('$outPathBase.png');
-      if (!await imageFile.exists()) {
-        await Process.run('pdftoppm', [
-          '-png',
-          '-f',
-          '${state.currentPage + 1}',
-          '-l',
-          '${state.currentPage + 1}',
-          '-singlefile',
-          '-scale-to',
-          '2000',
-          state.filePath,
-          outPathBase
-        ]);
+    if (state.format == BookFormat.pdf && _pdfDocument != null) {
+      // Androidはページの並列レンダリングを許可しないため、render→closeを
+      // 必ず順番に完了させる（前のページを閉じる前に次を開かない）
+      final page = await _pdfDocument!.getPage(state.currentPage + 1);
+      try {
+        final image = await page.render(
+          width: page.width * 2,
+          height: page.height * 2,
+          format: PdfPageImageFormat.png,
+        );
+        bytes = image?.bytes;
+      } finally {
+        await page.close();
       }
-      bytes = await imageFile.readAsBytes();
     } else if (_sortedImages != null) {
       bytes = _sortedImages![state.currentPage].content;
     }
@@ -123,7 +136,7 @@ class ViewerNotifier extends StateNotifier<ReadState> {
     final shelfBooks = libraryState.books
         .where((b) =>
             b.shelfId == currentBook.shelfId &&
-            p.dirname(b.filePath) == p.dirname(currentBook.filePath))
+            bookFolderKey(b) == bookFolderKey(currentBook))
         .toList()
       ..sort((a, b) => SortUtils.compareBooks(a, b));
     final currentIndex = shelfBooks.indexWhere((b) => b.id == bookId);
@@ -133,7 +146,7 @@ class ViewerNotifier extends StateNotifier<ReadState> {
       ref.read(tabProvider.notifier).openBook(
           nextBook.id, nextBook.title, false,
           currentShelfId: nextBook.shelfId,
-          currentPath: p.dirname(nextBook.filePath));
+          currentPath: bookFolderKey(nextBook));
     }
   }
 
@@ -150,4 +163,11 @@ class ViewerNotifier extends StateNotifier<ReadState> {
   }
 
   void toggleUI() => state = state.copyWith(showUI: !state.showUI);
+
+  @override
+  void dispose() {
+    _pdfDocument?.close();
+    _cbzInputStream?.close();
+    super.dispose();
+  }
 }

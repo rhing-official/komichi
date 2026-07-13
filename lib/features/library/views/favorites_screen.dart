@@ -10,6 +10,7 @@ import '../widgets/read_progress_bar.dart';
 import '../../../core/providers/tab_provider.dart';
 import '../../../core/providers/selection_provider.dart';
 import '../../../core/utils/sort_utils.dart';
+import '../../../core/utils/book_path_utils.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   final bool isActive;
@@ -230,17 +231,14 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
     final state = ref.watch(libraryProvider);
     final isChecked =
         ref.watch(selectionProvider).selectedIds.contains(widget.path);
-    final fName = p.basename(widget.path);
-    final rel = p.relative(widget.path, from: widget.shelf.folderPath);
-    final relParts = rel == '.' ? <String>[] : rel.split(p.separator);
+    final fName = folderDisplayName(widget.path);
+    final relParts = relativeFolderSegments(widget.path, widget.shelf.folderPath);
     final segments = ['トップ', widget.shelf.name, ...relParts];
 
     final booksInFolder = state.books.where((b) =>
-        b.shelfId == widget.shelf.id &&
-        (b.filePath == widget.path ||
-            b.filePath.startsWith(widget.path + p.separator)));
+        b.shelfId == widget.shelf.id && bookIsWithinFolder(b, widget.path));
     final sortedBooks = booksInFolder.toList()
-      ..sort((a, b) => SortUtils.compareNatural(a.title, b.title));
+      ..sort((a, b) => SortUtils.compareBooks(a, b));
     final thumbBooks = sortedBooks.take(5).toList().reversed.toList();
 
     return MouseRegion(

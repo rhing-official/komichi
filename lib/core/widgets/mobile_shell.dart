@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/tab_provider.dart';
+import '../utils/system_nav_bar_inset.dart';
 import 'mobile_nav_popup.dart';
 import 'tab_content_builder.dart';
 
@@ -16,6 +17,9 @@ class MobileShell extends ConsumerWidget {
     final tabState = ref.watch(tabProvider);
     final currentTab = tabState.tabs[tabState.currentIndex];
     final isBookOpen = currentTab.bookId != null;
+
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    if (bottomInset > 0) SystemNavBarInset.bottom = bottomInset;
 
     return Scaffold(
       body: IndexedStack(

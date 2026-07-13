@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import '../models/shelf.dart';
 import '../providers/library_provider.dart';
 import '../../../core/providers/tab_provider.dart';
 import '../../../core/providers/sidebar_focus_provider.dart';
 import '../../../core/utils/library_search.dart';
+import '../../../core/utils/book_path_utils.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../settings/models/app_settings.dart';
 
@@ -119,10 +119,9 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
                       itemBuilder: (context, index) {
                         if (index < folderSearchResults.length) {
                           final (s, path) = folderSearchResults[index];
-                          final fName = p.basename(path);
-                          final rel = p.relative(path, from: s.folderPath);
+                          final fName = folderDisplayName(path);
                           final relParts =
-                              rel == '.' ? <String>[] : rel.split(p.separator);
+                              relativeFolderSegments(path, s.folderPath);
                           final segments = ['トップ', s.name, ...relParts];
                           return Listener(
                             onPointerDown: (e) {
@@ -179,10 +178,9 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
                       itemBuilder: (context, index) {
                         if (index < favFolders.length) {
                           final (s, path) = favFolders[index];
-                          final fName = p.basename(path);
-                          final rel = p.relative(path, from: s.folderPath);
+                          final fName = folderDisplayName(path);
                           final relParts =
-                              rel == '.' ? <String>[] : rel.split(p.separator);
+                              relativeFolderSegments(path, s.folderPath);
                           final segments = ['トップ', s.name, ...relParts];
                           return Listener(
                             onPointerDown: (e) {
@@ -250,12 +248,14 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
               final settingsButton = IconButton(
                 icon: const Icon(Icons.settings, size: 20),
                 color: colorScheme.onSurfaceVariant,
-                onPressed: () => ref.read(tabProvider.notifier).openSettings(),
+                onPressed: () =>
+                    ref.read(tabProvider.notifier).openOrToggleSettings(),
               );
               final favoritesButton = IconButton(
                 icon: const Icon(Icons.star, size: 20),
                 color: colorScheme.onSurfaceVariant,
-                onPressed: () => ref.read(tabProvider.notifier).openFavorites(),
+                onPressed: () =>
+                    ref.read(tabProvider.notifier).openOrToggleFavorites(),
               );
               return Row(
                 mainAxisAlignment:

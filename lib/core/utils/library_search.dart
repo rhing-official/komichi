@@ -1,8 +1,8 @@
-import 'package:path/path.dart' as p;
 import '../../features/library/models/book.dart';
 import '../../features/library/models/shelf.dart';
 import '../../features/library/providers/library_provider.dart';
 import 'sort_utils.dart';
+import 'book_path_utils.dart';
 
 typedef LibrarySearchResults = ({
   List<Book> books,
@@ -24,20 +24,16 @@ LibrarySearchResults searchLibrary(LibraryState state, String rawQuery) {
   for (final shelf in state.shelves) {
     final paths = <String>{};
     for (final b in state.books.where((b) => b.shelfId == shelf.id)) {
-      var dir = p.dirname(b.filePath);
-      while (dir != shelf.folderPath && p.isWithin(shelf.folderPath, dir)) {
-        paths.add(dir);
-        dir = p.dirname(dir);
-      }
+      paths.addAll(ancestorFolders(b, shelf.folderPath));
     }
     for (final path in paths) {
-      if (p.basename(path).toLowerCase().contains(query)) {
+      if (folderDisplayName(path).toLowerCase().contains(query)) {
         folders.add((shelf, path));
       }
     }
   }
-  folders.sort(
-      (a, b) => SortUtils.compareNatural(p.basename(a.$2), p.basename(b.$2)));
+  folders.sort((a, b) =>
+      SortUtils.compareNatural(folderDisplayName(a.$2), folderDisplayName(b.$2)));
 
   return (books: books, folders: folders);
 }

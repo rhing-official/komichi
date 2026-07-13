@@ -7,7 +7,15 @@ class SortUtils {
     }
     if (a.number != null && b.number == null) return -1;
     if (a.number == null && b.number != null) return 1;
-    return compareNatural(a.title, b.title);
+    final byTitle = compareNatural(a.title, b.title);
+    if (byTitle != 0) return byTitle;
+    // タイトルが同名の本（別シリーズのフォルダにある巻数のみのファイル名
+    // "01.cbz" 等）が多いシェルフでは、ここまでの比較が0を返す（＝厳密な
+    // 全順序ではない）ケースが珍しくない。List.sort()は安定ソートを保証
+    // しないため、これを放置すると同名グループ内の並び順が実行毎に変わり
+    // 得る（表紙スタック先頭の本が起動のたびに違って見える不具合の原因）。
+    // filePathで最終的にタイブレークし、常に同じ順序になるようにする
+    return a.filePath.compareTo(b.filePath);
   }
 
   static int _getCharWeight(String char) {

@@ -47,4 +47,11 @@ class Book extends HiveObject {
 
   @HiveField(11)
   double? number; // ComicInfo.xml の <Number>（巻数順ソート用）
+
+  // ★Android専用：SAF(content://)ではfilePathが実パスではなくなるため、
+  // シェルフルートからの相対パス（例: "SubFolder/name.cbz"）をフォルダ単位の
+  // グルーピング（きょうだい本探索・お気に入りフォルダ・検索等）に使う。
+  // デスクトップでは常にnullのままで、既存通りfilePathのdirnameを使う
+  @HiveField(12)
+  String? relPath;
 }
