@@ -7,6 +7,8 @@ import '../../features/library/models/shelf.dart';
 import '../../features/settings/providers/settings_provider.dart';
 import '../../features/settings/models/app_settings.dart';
 
+enum _SpecialTabKind { settings, favorites, information }
+
 class TabItem {
   final String id;
   String title;
@@ -16,10 +18,11 @@ class TabItem {
   int historyIndex;
   bool isSettings;
   bool isFavorites;
+  bool isInformation;
 
   TabItem({
     required this.id,
-    this.title = '本棚',
+    this.title = 'トップ',
     this.bookId,
     this.shelfId,
     this.path,
@@ -28,6 +31,7 @@ class TabItem {
     this.historyIndex = 0,
     this.isSettings = false,
     this.isFavorites = false,
+    this.isInformation = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -41,11 +45,12 @@ class TabItem {
         'historyIndex': historyIndex,
         'isSettings': isSettings,
         'isFavorites': isFavorites,
+        'isInformation': isInformation,
       };
 
   static TabItem fromJson(Map<String, dynamic> json) => TabItem(
         id: json['id'] as String,
-        title: json['title'] as String? ?? '本棚',
+        title: json['title'] as String? ?? 'トップ',
         bookId: json['bookId'] as String?,
         shelfId: json['shelfId'] as String?,
         path: json['path'] as String?,
@@ -58,6 +63,7 @@ class TabItem {
         historyIndex: json['historyIndex'] as int? ?? 0,
         isSettings: json['isSettings'] as bool? ?? false,
         isFavorites: json['isFavorites'] as bool? ?? false,
+        isInformation: json['isInformation'] as bool? ?? false,
       );
 }
 
@@ -205,37 +211,61 @@ class TabNotifier extends StateNotifier<TabState> {
     ], currentIndex: state.tabs.length);
   }
 
-  // 設定/お気に入りアイコンが押された時の実際の窓口。設定の
+  void openInformation() {
+    final idx = state.tabs.indexWhere((t) => t.isInformation);
+    if (idx != -1) return selectTab(idx);
+    state = TabState(tabs: [
+      ...state.tabs,
+      TabItem(
+          id: const Uuid().v4(),
+          title: '情報',
+          isInformation: true,
+          segments: ['トップ', '情報'])
+    ], currentIndex: state.tabs.length);
+  }
+
+  // 設定/お気に入り/情報アイコンが押された時の実際の窓口。設定の
   // settingsFavoritesOpenModeに応じて「専用タブを開く/切り替える」
   // （従来の挙動）と「現在のタブ内でその場に切り替え、再度押すと戻る」を
   // 切り替える
   void openOrToggleSettings() {
     ref.read(settingsProvider).settingsFavoritesOpenMode ==
             SettingsFavoritesOpenMode.toggleInPlace
-        ? _toggleInPlace(toSettings: true)
+        ? _toggleInPlace(kind: _SpecialTabKind.settings)
         : openSettings();
   }
 
   void openOrToggleFavorites() {
     ref.read(settingsProvider).settingsFavoritesOpenMode ==
             SettingsFavoritesOpenMode.toggleInPlace
-        ? _toggleInPlace(toSettings: false)
+        ? _toggleInPlace(kind: _SpecialTabKind.favorites)
         : openFavorites();
   }
 
-  // 現在のタブ内で設定/お気に入りとその手前の表示を行き来するトグル。
+  void openOrToggleInformation() {
+    ref.read(settingsProvider).settingsFavoritesOpenMode ==
+            SettingsFavoritesOpenMode.toggleInPlace
+        ? _toggleInPlace(kind: _SpecialTabKind.information)
+        : openInformation();
+  }
+
+  // 現在のタブ内で設定/お気に入り/情報とその手前の表示を行き来するトグル。
   // navigateTo()/openBook()と同じ「現在位置以降の履歴を切り詰めてpush」
-  // パターンで積むため、既にpush済み（isSettings/isFavoritesがtrue）の
-  // 状態でもう一度呼ばれたら、単にundo()でひとつ前の履歴に戻ればよい。
-  // ただし、openSettings()/openFavorites()（専用タブを開く従来動作）で
-  // 作られたタブは常にhistoryIndex=0（履歴を積まない）のまま
-  // isSettings/isFavoritesがtrueになっているため、そのようなタブで
-  // トグルモードに切り替えて押した場合はundo()の戻り先が無く無反応に
+  // パターンで積むため、既にpush済み（isSettings/isFavorites/isInformation
+  // がtrue）の状態でもう一度呼ばれたら、単にundo()でひとつ前の履歴に戻れば
+  // よい。ただし、openSettings()/openFavorites()/openInformation()
+  // （専用タブを開く従来動作）で作られたタブは常にhistoryIndex=0
+  // （履歴を積まない）のままisSettings等がtrueになっているため、そのような
+  // タブでトグルモードに切り替えて押した場合はundo()の戻り先が無く無反応に
   // なってしまう。この場合は「戻る先が無い＝このタブに元々何も
   // 表示されていなかった」とみなし、本棚のトップへ遷移させる
-  void _toggleInPlace({required bool toSettings}) {
+  void _toggleInPlace({required _SpecialTabKind kind}) {
     final current = state.tabs[state.currentIndex];
-    final alreadyThere = toSettings ? current.isSettings : current.isFavorites;
+    final alreadyThere = switch (kind) {
+      _SpecialTabKind.settings => current.isSettings,
+      _SpecialTabKind.favorites => current.isFavorites,
+      _SpecialTabKind.information => current.isInformation,
+    };
     if (alreadyThere) {
       if (current.historyIndex > 0) {
         undo();
@@ -247,18 +277,24 @@ class TabNotifier extends StateNotifier<TabState> {
     final newTabs = [...state.tabs];
     final newHistory = List<Map<String, dynamic>>.from(
         current.history.sublist(0, current.historyIndex + 1));
-    final title = toSettings ? '設定' : 'お気に入り';
+    final title = switch (kind) {
+      _SpecialTabKind.settings => '設定',
+      _SpecialTabKind.favorites => 'お気に入り',
+      _SpecialTabKind.information => '情報',
+    };
     newHistory.add({
-      'isSettings': toSettings,
-      'isFavorites': !toSettings,
+      'isSettings': kind == _SpecialTabKind.settings,
+      'isFavorites': kind == _SpecialTabKind.favorites,
+      'isInformation': kind == _SpecialTabKind.information,
       'title': title,
       'segments': ['トップ', title],
     });
     newTabs[state.currentIndex] = TabItem(
         id: current.id,
         title: title,
-        isSettings: toSettings,
-        isFavorites: !toSettings,
+        isSettings: kind == _SpecialTabKind.settings,
+        isFavorites: kind == _SpecialTabKind.favorites,
+        isInformation: kind == _SpecialTabKind.information,
         segments: ['トップ', title],
         history: newHistory,
         historyIndex: newHistory.length - 1);
@@ -277,7 +313,7 @@ class TabNotifier extends StateNotifier<TabState> {
         ...state.tabs,
         TabItem(
             id: const Uuid().v4(),
-            title: title ?? '本棚',
+            title: title ?? 'トップ',
             shelfId: shelfId,
             path: path,
             segments: segments ?? ['トップ'],
@@ -305,7 +341,7 @@ class TabNotifier extends StateNotifier<TabState> {
     });
     newTabs[state.currentIndex] = TabItem(
         id: current.id,
-        title: title ?? '本棚',
+        title: title ?? 'トップ',
         shelfId: shelfId,
         path: path,
         segments: segments ?? ['トップ'],
@@ -369,7 +405,7 @@ class TabNotifier extends StateNotifier<TabState> {
     if (newSegs.length > 1) newSegs.removeLast();
     navigateTo(currentTab.shelfId,
         path: currentTab.path,
-        title: currentTab.path?.split('/').last ?? '本棚',
+        title: currentTab.path?.split('/').last ?? 'トップ',
         segments: newSegs);
   }
 
@@ -404,13 +440,14 @@ class TabNotifier extends StateNotifier<TabState> {
     final newTabs = [...state.tabs];
     newTabs[state.currentIndex] = TabItem(
         id: state.tabs[state.currentIndex].id,
-        title: h['title'] ?? '本棚',
+        title: h['title'] ?? 'トップ',
         shelfId: h['shelfId'],
         path: h['path'],
         segments: h['segments'] ?? ['トップ'],
         bookId: h['bookId'],
         isSettings: h['isSettings'] ?? false,
         isFavorites: h['isFavorites'] ?? false,
+        isInformation: h['isInformation'] ?? false,
         history: state.tabs[state.currentIndex].history,
         historyIndex: idx);
     state = TabState(tabs: newTabs, currentIndex: state.currentIndex);

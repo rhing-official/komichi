@@ -45,28 +45,31 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
               'back',
               'forward',
               'search',
-              'addTab',
               'tabCount',
-              'favorites',
               'settings',
-              'addFolder'
+              'addFolder',
+              'addTab',
+              'favorites',
+              'information'
             ]
           : (fields[13] as List).cast<String>(),
-      mobileNavHiddenIcons:
-          fields[14] == null ? [] : (fields[14] as List).cast<String>(),
+      mobileNavHiddenIcons: fields[14] == null
+          ? ['addTab', 'favorites', 'information']
+          : (fields[14] as List).cast<String>(),
       screenOrientationLock: fields[15] == null
           ? ScreenOrientationLock.portraitUp
           : fields[15] as ScreenOrientationLock,
       settingsFavoritesOpenMode: fields[16] == null
           ? SettingsFavoritesOpenMode.newTab
           : fields[16] as SettingsFavoritesOpenMode,
+      language: fields[17] == null ? AppLanguage.ja : fields[17] as AppLanguage,
     );
   }
 
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.pageDirection)
       ..writeByte(2)
@@ -94,7 +97,9 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(15)
       ..write(obj.screenOrientationLock)
       ..writeByte(16)
-      ..write(obj.settingsFavoritesOpenMode);
+      ..write(obj.settingsFavoritesOpenMode)
+      ..writeByte(17)
+      ..write(obj.language);
   }
 
   @override
@@ -555,6 +560,45 @@ class SettingsFavoritesOpenModeAdapter
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SettingsFavoritesOpenModeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class AppLanguageAdapter extends TypeAdapter<AppLanguage> {
+  @override
+  final int typeId = 15;
+
+  @override
+  AppLanguage read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return AppLanguage.ja;
+      case 1:
+        return AppLanguage.en;
+      default:
+        return AppLanguage.ja;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, AppLanguage obj) {
+    switch (obj) {
+      case AppLanguage.ja:
+        writer.writeByte(0);
+        break;
+      case AppLanguage.en:
+        writer.writeByte(1);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppLanguageAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

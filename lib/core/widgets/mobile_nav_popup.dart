@@ -5,22 +5,30 @@ import '../../features/library/providers/library_provider.dart';
 import '../../features/library/views/mobile_search_screen.dart';
 import '../../features/library/views/mobile_tab_switcher.dart';
 import '../../features/settings/providers/settings_provider.dart';
+import '../../l10n/app_localizations.dart';
 import 'glass_panel.dart';
 
 const double kMobileNavPopupHeight = 52;
 
 // アイコンID→(アイコン, ラベル)。設定画面の表示/並べ替えリストと、
-// ポップアップ本体([MobileNavIconRow])の両方から参照する共通定義
-const Map<String, (IconData, String)> kMobileNavIconMeta = {
-  'back': (Icons.arrow_back, '戻る'),
-  'forward': (Icons.arrow_forward, '進む'),
-  'search': (Icons.search, '検索'),
-  'addTab': (Icons.add, 'タブ追加'),
-  'tabCount': (Icons.tab_outlined, 'タブ一覧'),
-  'favorites': (Icons.star, 'お気に入り'),
-  'settings': (Icons.settings, '設定'),
-  'addFolder': (Icons.create_new_folder, 'フォルダを追加'),
-};
+// ポップアップ本体([MobileNavIconRow])の両方から参照する共通定義。
+// ラベルは表示言語設定に応じて切り替えるため、constマップではなくcontext
+// 引数を取る関数にしてある
+(IconData, String) mobileNavIconMeta(BuildContext context, String id) {
+  final loc = AppLocalizations.of(context)!;
+  return switch (id) {
+    'back' => (Icons.arrow_back, loc.navBack),
+    'forward' => (Icons.arrow_forward, loc.navForward),
+    'search' => (Icons.search, loc.navSearch),
+    'addTab' => (Icons.add, loc.navAddTab),
+    'tabCount' => (Icons.tab_outlined, loc.navTabList),
+    'favorites' => (Icons.star, loc.favorites),
+    'settings' => (Icons.settings, loc.settings),
+    'information' => (Icons.info_outline, loc.information),
+    'addFolder' => (Icons.create_new_folder, loc.addFolder),
+    _ => throw ArgumentError('unknown nav icon id: $id'),
+  };
+}
 
 class _NavAction {
   final IconData icon;
@@ -73,7 +81,7 @@ class MobileNavIconRow extends ConsumerWidget {
     final tab = tabState.tabs[tabState.currentIndex];
     final libraryState = ref.watch(libraryProvider);
 
-    final (icon, label) = kMobileNavIconMeta[id]!;
+    final (icon, label) = mobileNavIconMeta(context, id);
     switch (id) {
       case 'back':
         return _NavAction(
@@ -116,6 +124,11 @@ class MobileNavIconRow extends ConsumerWidget {
             icon: icon,
             label: label,
             onPressed: tabNotifier.openOrToggleSettings);
+      case 'information':
+        return _NavAction(
+            icon: icon,
+            label: label,
+            onPressed: tabNotifier.openOrToggleInformation);
       case 'addFolder':
         return _NavAction(
           icon: icon,
@@ -131,8 +144,8 @@ class MobileNavIconRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
-    final hidden = settings.mobileNavHiddenIcons.toSet();
-    final order = settings.mobileNavIconOrder;
+    final hidden = settings.effectiveMobileNavHiddenIcons.toSet();
+    final order = settings.effectiveMobileNavIconOrder;
     final visibleIds = order.where((id) => !hidden.contains(id)).toList();
     final hiddenIds = order.where((id) => hidden.contains(id)).toList();
     final color = iconColor ?? Theme.of(context).colorScheme.onSurface;
@@ -222,7 +235,7 @@ class _HamburgerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
-      tooltip: 'その他',
+      tooltip: AppLocalizations.of(context)!.navMore,
       icon: Icon(Icons.menu, size: 22, color: color),
       itemBuilder: (context) => [
         for (final id in hiddenIds)

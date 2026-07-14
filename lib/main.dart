@@ -49,6 +49,8 @@ void main() async {
       Hive.registerAdapter(ScreenOrientationLockAdapter());
     if (!Hive.isAdapterRegistered(14))
       Hive.registerAdapter(SettingsFavoritesOpenModeAdapter());
+    if (!Hive.isAdapterRegistered(15))
+      Hive.registerAdapter(AppLanguageAdapter());
 
     // ★ ここで全てのBoxが開くのを確実に待つ（これがエラーの解決策）
     await Future.wait([

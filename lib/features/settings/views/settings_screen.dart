@@ -4,6 +4,7 @@ import '../providers/settings_provider.dart';
 import '../models/app_settings.dart';
 import '../../../core/utils/platform_utils.dart';
 import '../../../core/widgets/mobile_nav_popup.dart';
+import '../../../l10n/app_localizations.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   final bool isActive;
@@ -45,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final loc = AppLocalizations.of(context)!;
 
     return Focus(
         focusNode: _focusNode,
@@ -54,17 +56,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             behavior: HitTestBehavior.translucent,
             onPointerDown: (_) => _focusNode.requestFocus(),
             child: Scaffold(
-              appBar: AppBar(title: const Text('設定')),
+              appBar: AppBar(title: Text(loc.settings)),
               body: ListView(
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Text('ページの送り方',
+                    child: Text(loc.pageDirectionSection,
                         style: Theme.of(context).textTheme.titleMedium),
                   ),
                   RadioListTile<PageDirection>(
-                    title: const Text('左送り'),
-                    subtitle: const Text('左クリック / 左キーで次ページへ移動します'),
+                    title: Text(loc.pageDirectionLeftTitle),
+                    subtitle: Text(loc.pageDirectionLeftSubtitle),
                     value: PageDirection.leftToNext,
                     groupValue: settings.pageDirection,
                     onChanged: (val) {
@@ -73,8 +75,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
                   RadioListTile<PageDirection>(
-                    title: const Text('右送り'),
-                    subtitle: const Text('右クリック / 右キーで次ページへ移動します'),
+                    title: Text(loc.pageDirectionRightTitle),
+                    subtitle: Text(loc.pageDirectionRightSubtitle),
                     value: PageDirection.rightToNext,
                     groupValue: settings.pageDirection,
                     onChanged: (val) {
@@ -86,11 +88,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const Divider(),
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text('サイドバーの位置',
+                      child: Text(loc.sidebarPositionSection,
                           style: Theme.of(context).textTheme.titleMedium),
                     ),
                     RadioListTile<SidebarPosition>(
-                      title: const Text('左'),
+                      title: Text(loc.sidebarPositionLeft),
                       value: SidebarPosition.left,
                       groupValue: settings.sidebarPosition,
                       onChanged: (val) {
@@ -100,7 +102,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                     ),
                     RadioListTile<SidebarPosition>(
-                      title: const Text('右'),
+                      title: Text(loc.sidebarPositionRight),
                       value: SidebarPosition.right,
                       groupValue: settings.sidebarPosition,
                       onChanged: (val) {
@@ -112,11 +114,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const Divider(),
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text('タブバーの配置',
+                      child: Text(loc.tabBarPositionSection,
                           style: Theme.of(context).textTheme.titleMedium),
                     ),
                     RadioListTile<TabBarPosition>(
-                      title: const Text('上部（水平タブ）'),
+                      title: Text(loc.tabBarPositionTop),
                       value: TabBarPosition.top,
                       groupValue: settings.tabBarPosition,
                       onChanged: (val) {
@@ -125,7 +127,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                     ),
                     RadioListTile<TabBarPosition>(
-                      title: const Text('左端（垂直タブ）'),
+                      title: Text(loc.tabBarPositionLeft),
                       value: TabBarPosition.left,
                       groupValue: settings.tabBarPosition,
                       onChanged: (val) {
@@ -134,7 +136,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                     ),
                     RadioListTile<TabBarPosition>(
-                      title: const Text('右端（垂直タブ）'),
+                      title: Text(loc.tabBarPositionRight),
                       value: TabBarPosition.right,
                       groupValue: settings.tabBarPosition,
                       onChanged: (val) {
@@ -144,7 +146,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                      child: Text('垂直タブ使用時、サイドバーと同じ辺にある場合にどちらを外側（画面端側）に配置するか',
+                      child: Text(loc.tabBarPositionOuterEdgeHint,
                           style: TextStyle(
                               fontSize: 12,
                               color: Theme.of(context)
@@ -152,7 +154,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   .onSurfaceVariant)),
                     ),
                     RadioListTile<OuterEdgeElement>(
-                      title: const Text('垂直タブを外側に'),
+                      title: Text(loc.outerEdgeVerticalTabs),
                       value: OuterEdgeElement.verticalTabs,
                       groupValue: settings.outerEdgeElement,
                       onChanged: (val) {
@@ -162,8 +164,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                     ),
                     RadioListTile<OuterEdgeElement>(
-                      title: const Text('サイドバーを外側に'),
-                      subtitle: const Text('サイドバーを最大化すると、垂直タブはそれに合わせて内側へ移動します'),
+                      title: Text(loc.outerEdgeSidebar),
+                      subtitle: Text(loc.outerEdgeSidebarSubtitle),
                       value: OuterEdgeElement.sidebar,
                       groupValue: settings.outerEdgeElement,
                       onChanged: (val) {
@@ -175,12 +177,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const Divider(),
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text('全画面表示のタイミング',
+                      child: Text(loc.fullscreenBehaviorSection,
                           style: Theme.of(context).textTheme.titleMedium),
                     ),
                     RadioListTile<FullscreenBehavior>(
-                      title: const Text('書籍を開いている間のみ'),
-                      subtitle: const Text('本棚などを見ている間はウィンドウ表示にします'),
+                      title: Text(loc.fullscreenOnViewerOnly),
+                      subtitle: Text(loc.fullscreenOnViewerOnlySubtitle),
                       value: FullscreenBehavior.onViewerOnly,
                       groupValue: settings.fullscreenBehavior,
                       onChanged: (val) {
@@ -190,7 +192,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                     ),
                     RadioListTile<FullscreenBehavior>(
-                      title: const Text('起動時から常に全画面'),
+                      title: Text(loc.fullscreenAlwaysOnLaunch),
                       value: FullscreenBehavior.alwaysOnLaunch,
                       groupValue: settings.fullscreenBehavior,
                       onChanged: (val) {
@@ -203,11 +205,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const Divider(),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Text('起動時のタブ',
+                    child: Text(loc.launchTabSection,
                         style: Theme.of(context).textTheme.titleMedium),
                   ),
                   RadioListTile<LaunchTabBehavior>(
-                    title: const Text('前回読んでいた書籍を再度開く'),
+                    title: Text(loc.launchTabResumeLastBook),
                     value: LaunchTabBehavior.resumeLastBook,
                     groupValue: settings.launchTabBehavior,
                     onChanged: (val) {
@@ -217,8 +219,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
                   RadioListTile<LaunchTabBehavior>(
-                    title: const Text('常に本棚タブから始める'),
-                    subtitle: const Text('読書履歴（どこまで読んだか）はこの設定に関わらず保持されます'),
+                    title: Text(loc.launchTabAlwaysLibrary),
+                    subtitle: Text(loc.launchTabAlwaysLibrarySubtitle),
                     value: LaunchTabBehavior.alwaysLibrary,
                     groupValue: settings.launchTabBehavior,
                     onChanged: (val) {
@@ -230,12 +232,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const Divider(),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Text('設定・お気に入りアイコンの動作',
+                    child: Text(loc.settingsFavoritesOpenModeSection,
                         style: Theme.of(context).textTheme.titleMedium),
                   ),
                   RadioListTile<SettingsFavoritesOpenMode>(
-                    title: const Text('別タブで開く'),
-                    subtitle: const Text('既に開いていればそのタブに切り替えます'),
+                    title: Text(loc.openInNewTab),
+                    subtitle: Text(loc.openModeNewTabSubtitle),
                     value: SettingsFavoritesOpenMode.newTab,
                     groupValue: settings.settingsFavoritesOpenMode,
                     onChanged: (val) {
@@ -245,8 +247,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
                   RadioListTile<SettingsFavoritesOpenMode>(
-                    title: const Text('現在のタブ内で切り替える'),
-                    subtitle: const Text('もう一度アイコンをタップすると、切り替え前に表示していたページに戻ります'),
+                    title: Text(loc.openModeToggleInPlace),
+                    subtitle: Text(loc.openModeToggleInPlaceSubtitle),
                     value: SettingsFavoritesOpenMode.toggleInPlace,
                     groupValue: settings.settingsFavoritesOpenMode,
                     onChanged: (val) {
@@ -259,11 +261,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const Divider(),
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text('中クリックで新しいタブを開いた時',
+                      child: Text(loc.middleClickSection,
                           style: Theme.of(context).textTheme.titleMedium),
                     ),
                     RadioListTile<MiddleClickTabBehavior>(
-                      title: const Text('新しいタブに自動的に切り替える'),
+                      title: Text(loc.middleClickSwitchToNewTab),
                       value: MiddleClickTabBehavior.switchToNewTab,
                       groupValue: settings.middleClickTabBehavior,
                       onChanged: (val) {
@@ -273,8 +275,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                     ),
                     RadioListTile<MiddleClickTabBehavior>(
-                      title: const Text('元のタブに留まる'),
-                      subtitle: const Text('新しいタブはバックグラウンドで開かれます'),
+                      title: Text(loc.middleClickStayOnCurrentTab),
+                      subtitle: Text(loc.middleClickStayOnCurrentTabSubtitle),
                       value: MiddleClickTabBehavior.stayOnCurrentTab,
                       groupValue: settings.middleClickTabBehavior,
                       onChanged: (val) {
@@ -288,12 +290,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const Divider(),
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text('ナビゲーションポップアップの表示アイコン',
+                      child: Text(loc.mobileNavIconsSection,
                           style: Theme.of(context).textTheme.titleMedium),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: Text('チェックを外したアイコンはポップアップ右端のメニューに収納されます。ドラッグで並び順を変更できます',
+                      child: Text(loc.mobileNavIconsHint,
                           style: TextStyle(
                               fontSize: 12,
                               color: Theme.of(context)
@@ -306,11 +308,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const Divider(),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Text('テーマ設定',
+                    child: Text(loc.themeSection,
                         style: Theme.of(context).textTheme.titleMedium),
                   ),
                   RadioListTile<AppTheme>(
-                    title: const Text('システム設定に従う'),
+                    title: Text(loc.themeSystem),
                     value: AppTheme.system,
                     groupValue: settings.theme,
                     onChanged: (val) {
@@ -319,7 +321,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
                   RadioListTile<AppTheme>(
-                    title: const Text('ライトモード'),
+                    title: Text(loc.themeLight),
                     value: AppTheme.light,
                     groupValue: settings.theme,
                     onChanged: (val) {
@@ -328,12 +330,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
                   RadioListTile<AppTheme>(
-                    title: const Text('ダークモード'),
+                    title: Text(loc.themeDark),
                     value: AppTheme.dark,
                     groupValue: settings.theme,
                     onChanged: (val) {
                       if (val != null)
                         notifier.state = settings.copyWith(theme: val);
+                    },
+                  ),
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(loc.languageSection,
+                        style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                  RadioListTile<AppLanguage>(
+                    title: Text(loc.languageJapanese),
+                    value: AppLanguage.ja,
+                    groupValue: settings.language,
+                    onChanged: (val) {
+                      if (val != null)
+                        notifier.state = settings.copyWith(language: val);
+                    },
+                  ),
+                  RadioListTile<AppLanguage>(
+                    title: Text(loc.languageEnglish),
+                    value: AppLanguage.en,
+                    groupValue: settings.language,
+                    onChanged: (val) {
+                      if (val != null)
+                        notifier.state = settings.copyWith(language: val);
                     },
                   ),
                 ],
@@ -353,8 +379,8 @@ class _MobileNavIconSettingsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final order = settings.mobileNavIconOrder;
-    final hidden = settings.mobileNavHiddenIcons.toSet();
+    final order = settings.effectiveMobileNavIconOrder;
+    final hidden = settings.effectiveMobileNavHiddenIcons.toSet();
     return ReorderableListView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -369,8 +395,8 @@ class _MobileNavIconSettingsList extends StatelessWidget {
         for (final id in order)
           CheckboxListTile(
             key: ValueKey(id),
-            secondary: Icon(kMobileNavIconMeta[id]!.$1),
-            title: Text(kMobileNavIconMeta[id]!.$2),
+            secondary: Icon(mobileNavIconMeta(context, id).$1),
+            title: Text(mobileNavIconMeta(context, id).$2),
             value: !hidden.contains(id),
             onChanged: (checked) {
               final newHidden = Set<String>.from(hidden);

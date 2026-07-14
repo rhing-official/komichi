@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/tab_provider.dart';
+import '../../../core/utils/tab_title_utils.dart';
+import '../../../l10n/app_localizations.dart';
 
 // デスクトップのタブバー・垂直タブ帯の代替。モバイルでは常時表示のタブ列を
 // 持たず、ポップアップの「現在のタブ数」アイコンからこのボトムシートを開いて
@@ -43,7 +45,8 @@ class MobileTabSwitcher extends ConsumerWidget {
                                 ? Icons.book
                                 : Icons.folder,
                     color: colorScheme.onSurfaceVariant),
-                title: Text(tab.title, overflow: TextOverflow.ellipsis),
+                title: Text(tabDisplayTitle(context, tab.title),
+                    overflow: TextOverflow.ellipsis),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, size: 18),
                   onPressed: () => notifier.closeTab(index),
@@ -58,7 +61,7 @@ class MobileTabSwitcher extends ConsumerWidget {
         ),
         ListTile(
           leading: Icon(Icons.add, color: colorScheme.onSurface),
-          title: const Text('新しいタブ'),
+          title: Text(AppLocalizations.of(context)!.newTab),
           onTap: () {
             notifier.addLibraryTab();
             Navigator.of(context).pop();

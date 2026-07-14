@@ -1,0 +1,127 @@
+{
+  "@@locale": "en",
+
+  "settings": "Settings",
+
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "addFolder": "Add Folder",
+  "openInNewTab": "Open in New Tab",
+  "addToFavorites": "Add to Favorites",
+  "removeFromFavorites": "Remove from Favorites",
+  "favorites": "Favorites",
+  "noFavoritesYet": "No favorites yet",
+
+  "fileCount": "{count, plural, one{{count} file} other{{count} files}}",
+
+  "noShelvesYet": "No bookshelves added yet",
+
+  "topPageTitle": "Top",
+  "newTab": "New Tab",
+  "information": "Information",
+
+  "appTagline": "Just you and a book",
+  "versionInfo": "Version {version}",
+
+  "licensesSection": "Open Source Licenses",
+  "licensesButton": "View Licenses",
+
+  "shortcutsSection": "Keyboard Shortcuts",
+  "shortcutCategoryNavigation": "Navigation",
+  "shortcutCategoryTabs": "Tabs",
+  "shortcutCategoryScreenFile": "Screen & Files",
+  "shortcutCategoryViewer": "In the Viewer",
+
+  "shortcutAltArrow": "Go back / forward in history",
+  "shortcutEsc": "Close the viewer and return to the folder",
+  "shortcutCtrlTab": "Switch to the tab on the right / below",
+  "shortcutCtrlShiftTab": "Switch to the tab on the left / above",
+  "shortcutCtrlT": "Open a new bookshelf tab",
+  "shortcutCtrlW": "Close the current tab",
+  "shortcutMiddleClick": "Close a tab / open a book or folder in a new tab",
+  "shortcutCtrlI": "Open settings",
+  "shortcutCtrlF": "Open favorites",
+  "shortcutF1": "Open information",
+  "shortcutCtrlS": "Focus the sidebar search field",
+  "shortcutCtrlA": "Select all items in the current folder",
+  "shortcutCtrlClick": "Add or remove an individual item from the selection",
+  "shortcutShiftClick": "Range-select (selects everything from the last click to this one)",
+  "shortcutF5": "Rescan folders and refresh the book list",
+  "shortcutArrowLeftRight": "Previous / next page",
+  "shortcutCtrlArrowLeftRight": "Go to the first / last page",
+  "shortcutArrowUpDown": "Open the previous / next book in the same folder",
+  "shortcutSpace": "Show or hide the menu bar",
+
+  "sidebarSearchHint": "Search books & folders...",
+  "noSearchResults": "No matching books or folders found",
+
+  "deleteFolderTitle": "Delete Folder",
+  "deleteFolderConfirm": "Delete all books in this folder?",
+
+  "jumpToFirstPage": "Go to First Page",
+  "jumpToLastPage": "Go to Last Page",
+  "nextBook": "Next Book",
+  "previousBook": "Previous Book",
+  "orientationPortrait": "Portrait",
+  "orientationLandscapeLeft": "Rotate Left 90°",
+  "orientationLandscapeRight": "Rotate Right 90°",
+  "orientationPortraitDown": "180°",
+
+  "navBack": "Back",
+  "navForward": "Forward",
+  "navSearch": "Search",
+  "navAddTab": "Add Tab",
+  "navTabList": "Tabs",
+  "navMore": "More",
+
+  "pageDirectionSection": "Page Direction",
+  "pageDirectionLeftTitle": "Left-to-Right",
+  "pageDirectionLeftSubtitle": "Left click / Left arrow key moves to the next page",
+  "pageDirectionRightTitle": "Right-to-Left",
+  "pageDirectionRightSubtitle": "Right click / Right arrow key moves to the next page",
+
+  "sidebarPositionSection": "Sidebar Position",
+  "sidebarPositionLeft": "Left",
+  "sidebarPositionRight": "Right",
+
+  "tabBarPositionSection": "Tab Bar Position",
+  "tabBarPositionTop": "Top (Horizontal Tabs)",
+  "tabBarPositionLeft": "Left Edge (Vertical Tabs)",
+  "tabBarPositionRight": "Right Edge (Vertical Tabs)",
+  "tabBarPositionOuterEdgeHint": "When using vertical tabs on the same side as the sidebar, choose which one sits on the outer edge (screen side)",
+  "outerEdgeVerticalTabs": "Vertical Tabs on the Outside",
+  "outerEdgeSidebar": "Sidebar on the Outside",
+  "outerEdgeSidebarSubtitle": "Maximizing the sidebar moves the vertical tabs inward to make room",
+
+  "fullscreenBehaviorSection": "Fullscreen Timing",
+  "fullscreenOnViewerOnly": "Only While Reading a Book",
+  "fullscreenOnViewerOnlySubtitle": "Shows a normal window while browsing shelves, etc.",
+  "fullscreenAlwaysOnLaunch": "Always Fullscreen from Launch",
+
+  "launchTabSection": "Startup Tab",
+  "launchTabResumeLastBook": "Reopen the Last Book You Were Reading",
+  "launchTabAlwaysLibrary": "Always Start from the Bookshelf Tab",
+  "launchTabAlwaysLibrarySubtitle": "Reading progress is kept regardless of this setting",
+
+  "settingsFavoritesOpenModeSection": "Settings/Favorites Icon Behavior",
+  "openModeNewTabSubtitle": "Switches to the existing tab if one is already open",
+  "openModeToggleInPlace": "Switch Within the Current Tab",
+  "openModeToggleInPlaceSubtitle": "Tapping the icon again returns to the page you were viewing before",
+
+  "middleClickSection": "When Opening a New Tab with Middle-Click",
+  "middleClickSwitchToNewTab": "Automatically Switch to the New Tab",
+  "middleClickStayOnCurrentTab": "Stay on the Current Tab",
+  "middleClickStayOnCurrentTabSubtitle": "The new tab opens in the background",
+
+  "mobileNavIconsSection": "Navigation Popup Icons",
+  "mobileNavIconsHint": "Unchecked icons are tucked into the menu on the right of the popup. Drag to reorder",
+
+  "themeSection": "Theme",
+  "themeSystem": "Follow System Setting",
+  "themeLight": "Light Mode",
+  "themeDark": "Dark Mode",
+
+  "languageSection": "Language",
+  "languageJapanese": "日本語",
+  "languageEnglish": "English"
+}

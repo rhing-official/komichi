@@ -9,6 +9,7 @@ import '../../../core/utils/library_search.dart';
 import '../../../core/utils/book_path_utils.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../settings/models/app_settings.dart';
+import '../../../l10n/app_localizations.dart';
 
 class BookshelfSidebar extends ConsumerStatefulWidget {
   const BookshelfSidebar({super.key});
@@ -60,6 +61,7 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
     final hasFavorites = favFolders.isNotEmpty || favBooks.isNotEmpty;
 
     final colorScheme = Theme.of(context).colorScheme;
+    final loc = AppLocalizations.of(context)!;
     return Material(
       type: MaterialType.transparency,
       child: Column(children: [
@@ -69,7 +71,7 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
             focusNode: _searchFocusNode,
             controller: _searchController,
             decoration: InputDecoration(
-                hintText: '書籍・フォルダを検索...',
+                hintText: loc.sidebarSearchHint,
                 prefixIcon: const Icon(Icons.search, size: 18),
                 suffixIcon: isSearching
                     ? IconButton(
@@ -94,7 +96,7 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
             width: double.infinity,
             child: OutlinedButton.icon(
               icon: const Icon(Icons.create_new_folder, size: 18),
-              label: const Text('フォルダを追加'),
+              label: Text(loc.addFolder),
               style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   side: BorderSide(color: colorScheme.outlineVariant),
@@ -109,7 +111,7 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
           child: isSearching
               ? ((searchResults.isEmpty && folderSearchResults.isEmpty)
                   ? Center(
-                      child: Text('該当する書籍・フォルダが見つかりません',
+                      child: Text(loc.noSearchResults,
                           style: TextStyle(
                               fontSize: 12, color: colorScheme.onSurfaceVariant)),
                     )
@@ -232,7 +234,7 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
                       },
                     )
                   : Center(
-                      child: Text('お気に入りはまだありません',
+                      child: Text(loc.noFavoritesYet,
                           style: TextStyle(
                               fontSize: 12, color: colorScheme.onSurfaceVariant)),
                     )),
@@ -257,12 +259,18 @@ class _BookshelfSidebarState extends ConsumerState<BookshelfSidebar> {
                 onPressed: () =>
                     ref.read(tabProvider.notifier).openOrToggleFavorites(),
               );
+              final informationButton = IconButton(
+                icon: const Icon(Icons.info_outline, size: 20),
+                color: colorScheme.onSurfaceVariant,
+                onPressed: () =>
+                    ref.read(tabProvider.notifier).openOrToggleInformation(),
+              );
               return Row(
                 mainAxisAlignment:
                     isLeft ? MainAxisAlignment.start : MainAxisAlignment.end,
                 children: isLeft
-                    ? [settingsButton, favoritesButton]
-                    : [favoritesButton, settingsButton],
+                    ? [settingsButton, favoritesButton, informationButton]
+                    : [informationButton, favoritesButton, settingsButton],
               );
             }),
           ),

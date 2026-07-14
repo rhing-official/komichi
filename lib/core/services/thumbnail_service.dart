@@ -27,7 +27,7 @@ class ThumbnailService {
 
       if (ext == 'pdf') {
         return await _generatePdfThumbnail(filePath, thumbFile, thumbPath);
-      } else if (ext == 'cbz') {
+      } else if (ext == 'cbz' || ext == 'zip') {
         final file = await FileService.materializeLocalFile(filePath);
         final stream = InputFileStream(file.path);
         try {

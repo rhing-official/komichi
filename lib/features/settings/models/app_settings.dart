@@ -117,16 +117,37 @@ enum SettingsFavoritesOpenMode {
   toggleInPlace,
 }
 
-// モバイル用ナビゲーションポップアップに並べる8アイコンのデフォルト順序
+// ★追加：アプリ表示言語（現時点ではホーム画面・ビューア・設定・サイドバー
+// など主要画面のみ対応。それ以外の画面は日本語のまま残る場合がある）
+@HiveType(typeId: 15)
+enum AppLanguage {
+  @HiveField(0)
+  ja,
+  @HiveField(1)
+  en,
+}
+
+// モバイル用ナビゲーションポップアップに並べる9アイコンのデフォルト順序
 const List<String> kDefaultMobileNavIconOrder = [
   'back',
   'forward',
   'search',
-  'addTab',
   'tabCount',
-  'favorites',
   'settings',
   'addFolder',
+  'addTab',
+  'favorites',
+  'information',
+];
+
+// ★追加：ポップアップはピクセル幅の都合上、常時表示できるのは
+// ハンバーガーメニューを含めて7個（アイコン6個+ハンバーガー）まで。
+// そのためデフォルトでは上記のうち6個だけを可視にし、残りはハンバーガー
+// メニューへ収納しておく
+const List<String> kDefaultMobileNavHiddenIcons = [
+  'addTab',
+  'favorites',
+  'information',
 ];
 
 @HiveType(typeId: 1)
@@ -169,7 +190,7 @@ class AppSettings {
   @HiveField(13, defaultValue: kDefaultMobileNavIconOrder)
   final List<String> mobileNavIconOrder;
 
-  @HiveField(14, defaultValue: <String>[])
+  @HiveField(14, defaultValue: kDefaultMobileNavHiddenIcons)
   final List<String> mobileNavHiddenIcons;
 
   @HiveField(15, defaultValue: ScreenOrientationLock.portraitUp)
@@ -177,6 +198,33 @@ class AppSettings {
 
   @HiveField(16, defaultValue: SettingsFavoritesOpenMode.newTab)
   final SettingsFavoritesOpenMode settingsFavoritesOpenMode;
+
+  @HiveField(17, defaultValue: AppLanguage.ja)
+  final AppLanguage language;
+
+  // mobileNavIconOrderは新規インストール時のみkDefaultMobileNavIconOrderが
+  // 初期値として使われるため、既にHiveへ保存済みの環境でアイコンを追加すると
+  // 既存ユーザーの保存済みリストには含まれず、設定画面から永久に表示できなく
+  // なってしまう。表示・並べ替え時はこちらを使い、保存済みリストに無い新しい
+  // アイコンIDを末尾に補完する
+  List<String> get effectiveMobileNavIconOrder => [
+        ...mobileNavIconOrder,
+        for (final id in kDefaultMobileNavIconOrder)
+          if (!mobileNavIconOrder.contains(id)) id,
+      ];
+
+  // 上記effectiveMobileNavIconOrderで補完された（＝ユーザーがまだ一度も
+  // 選んだことがない）新規アイコンは、ポップアップのピクセル幅が限られている
+  // ため、勝手に可視状態で追加すると行が溢れてしまう。ユーザーの保存済み
+  // hiddenIconsに含まれていない場合でも「まだ選んだことが無い新規アイコン」
+  // は安全側でデフォルト非表示（ハンバーガー行き）として扱う
+  List<String> get effectiveMobileNavHiddenIcons => [
+        ...mobileNavHiddenIcons,
+        for (final id in kDefaultMobileNavIconOrder)
+          if (!mobileNavIconOrder.contains(id) &&
+              !mobileNavHiddenIcons.contains(id))
+            id,
+      ];
 
   AppSettings({
     this.pageDirection = PageDirection.leftToNext,
@@ -190,9 +238,10 @@ class AppSettings {
     this.savedTabsJson,
     this.middleClickTabBehavior = MiddleClickTabBehavior.switchToNewTab,
     this.mobileNavIconOrder = kDefaultMobileNavIconOrder,
-    this.mobileNavHiddenIcons = const <String>[],
+    this.mobileNavHiddenIcons = kDefaultMobileNavHiddenIcons,
     this.screenOrientationLock = ScreenOrientationLock.portraitUp,
     this.settingsFavoritesOpenMode = SettingsFavoritesOpenMode.newTab,
+    this.language = AppLanguage.ja,
   });
 
   AppSettings copyWith({
@@ -211,6 +260,7 @@ class AppSettings {
     List<String>? mobileNavHiddenIcons,
     ScreenOrientationLock? screenOrientationLock,
     SettingsFavoritesOpenMode? settingsFavoritesOpenMode,
+    AppLanguage? language,
   }) {
     return AppSettings(
       pageDirection: pageDirection ?? this.pageDirection,
@@ -232,6 +282,7 @@ class AppSettings {
           screenOrientationLock ?? this.screenOrientationLock,
       settingsFavoritesOpenMode:
           settingsFavoritesOpenMode ?? this.settingsFavoritesOpenMode,
+      language: language ?? this.language,
     );
   }
 }

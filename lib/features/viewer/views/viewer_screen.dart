@@ -11,6 +11,7 @@ import '../../../core/widgets/mobile_nav_popup.dart';
 import '../../../core/utils/system_nav_bar_inset.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../settings/models/app_settings.dart';
+import '../../../l10n/app_localizations.dart';
 
 // app.dart側でサイドバーがこのメニューと重ならないよう高さを共有する。
 // 120だとページ数表示行+Slider+ページ送りボタン行の実際の高さに対して
@@ -300,6 +301,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       {required bool glass}) {
     final bool isLeftToNext =
         settings.pageDirection == PageDirection.leftToNext;
+    final loc = AppLocalizations.of(context)!;
     final content = Column(children: [
       SizedBox(
         height: 30,
@@ -332,22 +334,22 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
               onChanged: (v) => notifier.jumpToPage(v.toInt()))),
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         IconButton(
-            tooltip: isLeftToNext ? '最後のページへ' : '最初のページへ',
+            tooltip: isLeftToNext ? loc.jumpToLastPage : loc.jumpToFirstPage,
             icon: const Icon(Icons.skip_previous, color: Colors.white),
             onPressed: () =>
                 notifier.jumpToPage(isLeftToNext ? state.totalPages - 1 : 0)),
         IconButton(
-            tooltip: isLeftToNext ? '最初のページへ' : '最後のページへ',
+            tooltip: isLeftToNext ? loc.jumpToFirstPage : loc.jumpToLastPage,
             icon: const Icon(Icons.skip_next, color: Colors.white),
             onPressed: () =>
                 notifier.jumpToPage(isLeftToNext ? 0 : state.totalPages - 1)),
         const SizedBox(width: 40),
         IconButton(
-            tooltip: isLeftToNext ? '次の本へ' : '前の本へ',
+            tooltip: isLeftToNext ? loc.nextBook : loc.previousBook,
             icon: _bookNavIcon(isNext: isLeftToNext),
             onPressed: () => notifier.switchBook(isLeftToNext)),
         IconButton(
-            tooltip: isLeftToNext ? '前の本へ' : '次の本へ',
+            tooltip: isLeftToNext ? loc.previousBook : loc.nextBook,
             icon: _bookNavIcon(isNext: !isLeftToNext),
             onPressed: () => notifier.switchBook(!isLeftToNext)),
         // 画面の向き固定はAndroid専用（デスクトップはウィンドウが自由に
@@ -445,6 +447,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   }
 
   Future<void> _showOrientationMenu(Offset globalPosition) async {
+    final loc = AppLocalizations.of(context)!;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final current = ref.read(settingsProvider).screenOrientationLock;
     final selected = await showMenu<ScreenOrientationLock>(
@@ -455,19 +458,19 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
         CheckedPopupMenuItem(
             value: ScreenOrientationLock.portraitUp,
             checked: current == ScreenOrientationLock.portraitUp,
-            child: const Text('縦')),
+            child: Text(loc.orientationPortrait)),
         CheckedPopupMenuItem(
             value: ScreenOrientationLock.landscapeLeft,
             checked: current == ScreenOrientationLock.landscapeLeft,
-            child: const Text('左に90度')),
+            child: Text(loc.orientationLandscapeLeft)),
         CheckedPopupMenuItem(
             value: ScreenOrientationLock.landscapeRight,
             checked: current == ScreenOrientationLock.landscapeRight,
-            child: const Text('右に90度')),
+            child: Text(loc.orientationLandscapeRight)),
         CheckedPopupMenuItem(
             value: ScreenOrientationLock.portraitDown,
             checked: current == ScreenOrientationLock.portraitDown,
-            child: const Text('180度')),
+            child: Text(loc.orientationPortraitDown)),
       ],
     );
     if (selected == null || !mounted) return;

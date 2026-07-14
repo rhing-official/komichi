@@ -11,6 +11,7 @@ import '../../../core/providers/tab_provider.dart';
 import '../../../core/providers/selection_provider.dart';
 import '../../../core/utils/sort_utils.dart';
 import '../../../core/utils/book_path_utils.dart';
+import '../../../l10n/app_localizations.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   final bool isActive;
@@ -72,7 +73,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                   color:
                       Theme.of(context).colorScheme.primary.withOpacity(0.4)),
               const SizedBox(height: 16),
-              Text('お気に入りはまだありません',
+              Text(AppLocalizations.of(context)!.noFavoritesYet,
                   style: TextStyle(
                       fontSize: 14,
                       color: Theme.of(context)
@@ -152,8 +153,10 @@ Future<bool> _showFavBatchMenuIfApplicable({
     context: context,
     position: RelativeRect.fromRect(
         globalPosition & const Size(1, 1), Offset.zero & overlay.size),
-    items: const [
-      PopupMenuItem(value: 'favorite', child: Text('お気に入り解除')),
+    items: [
+      PopupMenuItem(
+          value: 'favorite',
+          child: Text(AppLocalizations.of(context)!.removeFromFavorites)),
     ],
   );
   final notifier = ref.read(libraryProvider.notifier);
@@ -203,9 +206,13 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
       context: context,
       position: RelativeRect.fromRect(
           globalPosition & const Size(1, 1), Offset.zero & overlay.size),
-      items: const [
-        PopupMenuItem(value: 'favorite', child: Text('お気に入り解除')),
-        PopupMenuItem(value: 'newtab', child: Text('別タブで開く')),
+      items: [
+        PopupMenuItem(
+            value: 'favorite',
+            child: Text(AppLocalizations.of(context)!.removeFromFavorites)),
+        PopupMenuItem(
+            value: 'newtab',
+            child: Text(AppLocalizations.of(context)!.openInNewTab)),
       ],
     );
     if (!mounted) return;
@@ -321,7 +328,8 @@ class _FavoriteFolderCardState extends ConsumerState<_FavoriteFolderCard> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          '${booksInFolder.length} 個のファイル',
+                          AppLocalizations.of(context)!
+                              .fileCount(booksInFolder.length),
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -393,9 +401,13 @@ class _FavoriteBookCardState extends ConsumerState<_FavoriteBookCard> {
       context: context,
       position: RelativeRect.fromRect(
           globalPosition & const Size(1, 1), Offset.zero & overlay.size),
-      items: const [
-        PopupMenuItem(value: 'favorite', child: Text('お気に入り解除')),
-        PopupMenuItem(value: 'newtab', child: Text('別タブで開く')),
+      items: [
+        PopupMenuItem(
+            value: 'favorite',
+            child: Text(AppLocalizations.of(context)!.removeFromFavorites)),
+        PopupMenuItem(
+            value: 'newtab',
+            child: Text(AppLocalizations.of(context)!.openInNewTab)),
       ],
     );
     if (!mounted) return;

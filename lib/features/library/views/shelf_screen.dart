@@ -10,6 +10,7 @@ import '../../../core/providers/tab_provider.dart';
 import '../../../core/providers/selection_provider.dart';
 import '../../../core/utils/sort_utils.dart';
 import '../../../core/utils/book_path_utils.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ShelfScreen extends ConsumerStatefulWidget {
   final String shelfId;
@@ -169,6 +170,7 @@ Future<bool> _showBatchMenuIfApplicable({
   final allFav = selectedBooks.every((b) => b.isFavorite) &&
       selectedFolderPaths.every((path) => shelf.favoriteFolders.contains(path));
 
+  final loc = AppLocalizations.of(context)!;
   final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
   final selected = await showMenu<String>(
     context: context,
@@ -176,8 +178,9 @@ Future<bool> _showBatchMenuIfApplicable({
         globalPosition & const Size(1, 1), Offset.zero & overlay.size),
     items: [
       PopupMenuItem(
-          value: 'favorite', child: Text(allFav ? 'お気に入り解除' : 'お気に入りに追加')),
-      const PopupMenuItem(value: 'delete', child: Text('削除')),
+          value: 'favorite',
+          child: Text(allFav ? loc.removeFromFavorites : loc.addToFavorites)),
+      PopupMenuItem(value: 'delete', child: Text(loc.delete)),
     ],
   );
   final notifier = ref.read(libraryProvider.notifier);
@@ -218,18 +221,19 @@ class _FolderItemState extends ConsumerState<_FolderItem> {
   bool _hover = false;
 
   Future<void> _removeFolder() async {
+    final loc = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('フォルダを削除'),
-        content: const Text('このフォルダ内のすべての書籍を削除（ゴミ箱へ移動）しますか？'),
+        title: Text(loc.deleteFolderTitle),
+        content: Text(loc.deleteFolderConfirm),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('キャンセル')),
+              child: Text(loc.cancel)),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('削除')),
+              child: Text(loc.delete)),
         ],
       ),
     );
@@ -251,6 +255,7 @@ class _FolderItemState extends ConsumerState<_FolderItem> {
       return;
     }
     if (!mounted) return;
+    final loc = AppLocalizations.of(context)!;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
@@ -259,9 +264,10 @@ class _FolderItemState extends ConsumerState<_FolderItem> {
       items: [
         PopupMenuItem(
             value: 'favorite',
-            child: Text(isAnyFavorite ? 'お気に入り解除' : 'お気に入りに追加')),
-        const PopupMenuItem(value: 'newtab', child: Text('別タブで開く')),
-        const PopupMenuItem(value: 'delete', child: Text('削除')),
+            child: Text(
+                isAnyFavorite ? loc.removeFromFavorites : loc.addToFavorites)),
+        PopupMenuItem(value: 'newtab', child: Text(loc.openInNewTab)),
+        PopupMenuItem(value: 'delete', child: Text(loc.delete)),
       ],
     );
     if (!mounted) return;
@@ -391,7 +397,8 @@ class _FolderItemState extends ConsumerState<_FolderItem> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          '${booksInFolder.length} 個のファイル',
+                          AppLocalizations.of(context)!
+                              .fileCount(booksInFolder.length),
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -461,6 +468,7 @@ class _BookItemState extends ConsumerState<_BookItem> {
       return;
     }
     if (!mounted) return;
+    final loc = AppLocalizations.of(context)!;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
@@ -469,9 +477,11 @@ class _BookItemState extends ConsumerState<_BookItem> {
       items: [
         PopupMenuItem(
             value: 'favorite',
-            child: Text(widget.book.isFavorite ? 'お気に入り解除' : 'お気に入りに追加')),
-        const PopupMenuItem(value: 'newtab', child: Text('別タブで開く')),
-        const PopupMenuItem(value: 'delete', child: Text('削除')),
+            child: Text(widget.book.isFavorite
+                ? loc.removeFromFavorites
+                : loc.addToFavorites)),
+        PopupMenuItem(value: 'newtab', child: Text(loc.openInNewTab)),
+        PopupMenuItem(value: 'delete', child: Text(loc.delete)),
       ],
     );
     if (!mounted) return;

@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 
   pdfx: ^2.9.2
   archive: ^4.0.9
@@ -24,6 +27,7 @@ dependencies:
   crypto: ^3.0.3
   window_manager: ^0.4.2
   docman: ^1.2.0
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:
@@ -34,3 +38,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true

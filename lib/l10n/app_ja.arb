@@ -1,0 +1,136 @@
+{
+  "@@locale": "ja",
+
+  "settings": "設定",
+  "@settings": {"description": "設定画面のタイトル・ナビゲーションポップアップの設定アイコンラベル"},
+
+  "cancel": "キャンセル",
+  "delete": "削除",
+  "addFolder": "フォルダを追加",
+  "openInNewTab": "別タブで開く",
+  "addToFavorites": "お気に入りに追加",
+  "removeFromFavorites": "お気に入り解除",
+  "favorites": "お気に入り",
+  "noFavoritesYet": "お気に入りはまだありません",
+
+  "fileCount": "{count} 個のファイル",
+  "@fileCount": {
+    "description": "フォルダ/本棚カード右下に表示するファイル数",
+    "placeholders": {"count": {"type": "int"}}
+  },
+
+  "noShelvesYet": "まだ本棚が追加されていません",
+
+  "topPageTitle": "トップ",
+  "newTab": "新しいタブ",
+  "information": "情報",
+
+  "appTagline": "本と、二人きり",
+  "versionInfo": "バージョン {version}",
+  "@versionInfo": {
+    "description": "情報タブに表示するアプリのバージョン番号",
+    "placeholders": {"version": {"type": "String"}}
+  },
+
+  "licensesSection": "オープンソースライセンス",
+  "licensesButton": "ライセンス一覧を表示",
+
+  "shortcutsSection": "キーボードショートカット",
+  "shortcutCategoryNavigation": "ナビゲーション",
+  "shortcutCategoryTabs": "タブ操作",
+  "shortcutCategoryScreenFile": "画面・ファイル操作",
+  "shortcutCategoryViewer": "ビューア内",
+
+  "shortcutAltArrow": "履歴を戻る / 進む",
+  "shortcutEsc": "ビューアを閉じて元のフォルダに戻る",
+  "shortcutCtrlTab": "右 / 下のタブへ切り替え",
+  "shortcutCtrlShiftTab": "左 / 上のタブへ切り替え",
+  "shortcutCtrlT": "新しい本棚タブを開く",
+  "shortcutCtrlW": "現在のタブを閉じる",
+  "shortcutMiddleClick": "タブを閉じる / 本・フォルダを新しいタブで開く",
+  "shortcutCtrlI": "設定を開く",
+  "shortcutCtrlF": "お気に入りを開く",
+  "shortcutF1": "情報を開く",
+  "shortcutCtrlS": "サイドバーの検索欄にフォーカス",
+  "shortcutCtrlA": "表示中のフォルダ / ファイルを全選択",
+  "shortcutCtrlClick": "個別選択の追加 / 解除",
+  "shortcutShiftClick": "範囲選択（起点からクリック位置まで全て選択）",
+  "shortcutF5": "フォルダを再スキャンして書籍一覧を更新",
+  "shortcutArrowLeftRight": "前 / 次ページ",
+  "shortcutCtrlArrowLeftRight": "最初 / 最後のページへ",
+  "shortcutArrowUpDown": "同じフォルダ内の前の本 / 次の本を開く",
+  "shortcutSpace": "メニューバーの表示 / 非表示切り替え",
+
+  "sidebarSearchHint": "書籍・フォルダを検索...",
+  "noSearchResults": "該当する書籍・フォルダが見つかりません",
+
+  "deleteFolderTitle": "フォルダを削除",
+  "deleteFolderConfirm": "このフォルダ内のすべての書籍を削除しますか？",
+
+  "jumpToFirstPage": "最初のページへ",
+  "jumpToLastPage": "最後のページへ",
+  "nextBook": "次の本へ",
+  "previousBook": "前の本へ",
+  "orientationPortrait": "縦",
+  "orientationLandscapeLeft": "左に90度",
+  "orientationLandscapeRight": "右に90度",
+  "orientationPortraitDown": "180度",
+
+  "navBack": "戻る",
+  "navForward": "進む",
+  "navSearch": "検索",
+  "navAddTab": "タブ追加",
+  "navTabList": "タブ一覧",
+  "navMore": "その他",
+
+  "pageDirectionSection": "ページの送り方",
+  "pageDirectionLeftTitle": "左送り",
+  "pageDirectionLeftSubtitle": "左クリック / 左キーで次ページへ移動します",
+  "pageDirectionRightTitle": "右送り",
+  "pageDirectionRightSubtitle": "右クリック / 右キーで次ページへ移動します",
+
+  "sidebarPositionSection": "サイドバーの位置",
+  "sidebarPositionLeft": "左",
+  "sidebarPositionRight": "右",
+
+  "tabBarPositionSection": "タブバーの配置",
+  "tabBarPositionTop": "上部（水平タブ）",
+  "tabBarPositionLeft": "左端（垂直タブ）",
+  "tabBarPositionRight": "右端（垂直タブ）",
+  "tabBarPositionOuterEdgeHint": "垂直タブ使用時、サイドバーと同じ辺にある場合にどちらを外側（画面端側）に配置するか",
+  "outerEdgeVerticalTabs": "垂直タブを外側に",
+  "outerEdgeSidebar": "サイドバーを外側に",
+  "outerEdgeSidebarSubtitle": "サイドバーを最大化すると、垂直タブはそれに合わせて内側へ移動します",
+
+  "fullscreenBehaviorSection": "全画面表示のタイミング",
+  "fullscreenOnViewerOnly": "書籍を開いている間のみ",
+  "fullscreenOnViewerOnlySubtitle": "本棚などを見ている間はウィンドウ表示にします",
+  "fullscreenAlwaysOnLaunch": "起動時から常に全画面",
+
+  "launchTabSection": "起動時のタブ",
+  "launchTabResumeLastBook": "前回読んでいたタブを再度開く",
+  "launchTabAlwaysLibrary": "常にトップページから始める",
+  "launchTabAlwaysLibrarySubtitle": "読書の進捗はこの設定に関わらず保持されます",
+
+  "settingsFavoritesOpenModeSection": "設定・お気に入りアイコンの動作",
+  "openModeNewTabSubtitle": "既に開いていればそのタブに切り替えます",
+  "openModeToggleInPlace": "現在のタブ内で切り替える",
+  "openModeToggleInPlaceSubtitle": "もう一度アイコンをタップすると、切り替え前に表示していたページに戻ります",
+
+  "middleClickSection": "ミドルクリックで新しいタブを開いた時",
+  "middleClickSwitchToNewTab": "新しいタブに自動的に切り替える",
+  "middleClickStayOnCurrentTab": "元のタブに留まる",
+  "middleClickStayOnCurrentTabSubtitle": "新しいタブはバックグラウンドで開かれます",
+
+  "mobileNavIconsSection": "ナビゲーションポップアップの表示アイコン",
+  "mobileNavIconsHint": "チェックを外したアイコンはポップアップ右端のメニューに収納されます。ドラッグで並び順を変更できます",
+
+  "themeSection": "テーマ設定",
+  "themeSystem": "システム設定に従う",
+  "themeLight": "ライトモード",
+  "themeDark": "ダークモード",
+
+  "languageSection": "言語",
+  "languageJapanese": "日本語",
+  "languageEnglish": "English"
+}

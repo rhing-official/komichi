@@ -1,8 +1,10 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'l10n/app_localizations.dart';
 import 'features/library/models/shelf.dart';
 import 'core/utils/platform_utils.dart';
 import 'core/utils/book_path_utils.dart';
@@ -18,6 +20,7 @@ import 'features/viewer/providers/viewer_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'features/settings/models/app_settings.dart';
 import 'features/library/providers/library_provider.dart';
+import 'core/utils/tab_title_utils.dart';
 
 // Material3のfromSeedはグレー系シードでも内部的に色相を持たせてしまうため、
 // 実際に参照している色ロールは明示的にグレースケールへ上書きする
@@ -58,6 +61,12 @@ class KomichiApp extends ConsumerWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      locale: switch (settings.language) {
+        AppLanguage.ja => const Locale('ja'),
+        AppLanguage.en => const Locale('en'),
+      },
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       themeMode: themeMode,
       theme: ThemeData(
         brightness: Brightness.light,
@@ -199,6 +208,10 @@ class _TabShellState extends ConsumerState<TabShell>
     }
     if (key == LogicalKeyboardKey.f5) {
       _syncFiles();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.f1) {
+      notifier.openOrToggleInformation();
       return true;
     }
     return false;
@@ -934,7 +947,8 @@ class _PathBar extends ConsumerWidget {
                             }
                           }
                         },
-                        child: Text("${e.value}  /  ",
+                        child: Text(
+                            "${tabDisplayTitle(context, e.value)}  /  ",
                             style: TextStyle(
                                 color: colorScheme.onSurface,
                                 fontSize: 13,
@@ -1014,7 +1028,7 @@ class _TabWidget extends ConsumerWidget {
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 140),
-                child: Text(item.title,
+                child: Text(tabDisplayTitle(context, item.title),
                     style: TextStyle(
                         fontSize: 11,
                         color: active
@@ -1091,7 +1105,7 @@ class _NewTabButton extends StatelessWidget {
         child: Row(children: [
           Icon(Icons.add, size: 18, color: colorScheme.onSurface),
           const SizedBox(width: 8),
-          Text('新しいタブ',
+          Text(AppLocalizations.of(context)!.newTab,
               style: TextStyle(
                   fontSize: 12,
                   color: colorScheme.onSurface,
@@ -1134,7 +1148,7 @@ class _VerticalTabWidget extends ConsumerWidget {
               borderRadius: BorderRadius.circular(6)),
           child: Row(children: [
             Expanded(
-                child: Text(item.title,
+                child: Text(tabDisplayTitle(context, item.title),
                     style: TextStyle(
                         fontSize: 12,
                         color: active

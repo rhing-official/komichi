@@ -8,6 +8,7 @@ import '../../../core/providers/tab_provider.dart';
 import '../../../core/providers/selection_provider.dart';
 import '../../../core/utils/sort_utils.dart';
 import '../../../core/utils/book_path_utils.dart';
+import '../../../l10n/app_localizations.dart';
 
 class HomePlaceholderScreen extends ConsumerStatefulWidget {
   final bool isActive;
@@ -77,7 +78,7 @@ class _HomePlaceholderScreenState extends ConsumerState<HomePlaceholderScreen> {
                           .primary
                           .withOpacity(0.4)),
                   const SizedBox(height: 16),
-                  Text('まだ本棚が追加されていません',
+                  Text(AppLocalizations.of(context)!.noShelvesYet,
                       style: TextStyle(
                           fontSize: 14,
                           color: Theme.of(context)
@@ -116,6 +117,7 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
   bool _hover = false;
 
   Future<void> _showShelfMenu(Offset globalPosition) async {
+    final loc = AppLocalizations.of(context)!;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final selected = await showMenu<String>(
       context: context,
@@ -124,9 +126,11 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
       items: [
         PopupMenuItem(
             value: 'favorite',
-            child: Text(widget.shelf.isFavorite ? 'お気に入り解除' : 'お気に入りに追加')),
-        const PopupMenuItem(value: 'newtab', child: Text('別タブで開く')),
-        const PopupMenuItem(value: 'delete', child: Text('削除')),
+            child: Text(widget.shelf.isFavorite
+                ? loc.removeFromFavorites
+                : loc.addToFavorites)),
+        PopupMenuItem(value: 'newtab', child: Text(loc.openInNewTab)),
+        PopupMenuItem(value: 'delete', child: Text(loc.delete)),
       ],
     );
     if (!mounted) return;
@@ -240,7 +244,8 @@ class _ShelfCardState extends ConsumerState<_ShelfCard> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          '${booksInShelf.length} 個のファイル',
+                          AppLocalizations.of(context)!
+                              .fileCount(booksInShelf.length),
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
