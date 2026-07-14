@@ -62,7 +62,7 @@ modules:
       - type: dir
         path: build/linux/x64/release/bundle
       - type: file
-        path: icon.png
+        path: komichi-icon-512.png
         dest-filename: io.github.rhing.komichi.png
       - type: file
         path: io.github.rhing.komichi.desktop
