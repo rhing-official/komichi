@@ -48,6 +48,25 @@ jobs:
           name: linux-build
           path: komichi-linux.tar.gz
 
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter config --enable-macos-desktop
+      - run: flutter pub get
+      - run: flutter build macos --release
+      - name: Zip build output
+        run: |
+          app_path=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app')
+          ditto -c -k --keepParent "$app_path" komichi-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: komichi-macos.zip
+
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -93,7 +112,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-windows, build-linux, build-android]
+    needs: [build-windows, build-linux, build-android, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -105,3 +124,4 @@ jobs:
             windows-build/komichi-windows.zip
             linux-build/komichi-linux.tar.gz
             android-build/komichi-android.apk
+            macos-build/komichi-macos.zip
