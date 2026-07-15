@@ -45,6 +45,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Android release signing (Google Play) - 秘密情報のためコミットしない
+/android/key.properties
+*.jks
+*.keystore
+
 # Flatpak / AppImage build artifacts
 /.flatpak-builder/
 /AppDir/

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.rhing.komichi</id>
+  <name>komichi</name>
+  <summary>本と、二人きり — ローカルのPDF/CBZ電子書籍リーダー</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <developer id="io.github.rhing">
+    <name>rhing</name>
+  </developer>
+  <description>
+    <p>
+      komichi は PDF・CBZ 形式の電子書籍/コミックをローカルで管理・閲覧する
+      クロスプラットフォームリーダーです。クラウド同期は行わず、
+      すべてのデータを端末内だけで完結させます。
+    </p>
+    <p>主な機能:</p>
+    <ul>
+      <li>PDF / CBZ (ZIP) 形式のコミック・電子書籍の閲覧</li>
+      <li>本棚（フォルダ）単位でのライブラリ管理</li>
+      <li>マルチタブでの複数本の同時オープン</li>
+      <li>キーボード・マウス操作によるページめくり</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.rhing.komichi.desktop</launchable>
+  <screenshots>
+    <!-- TODO: 提出前にスクリーンショットを撮影し、実際にアクセス可能なURLに差し替えること -->
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/rhing-official/komichi/main/docs/screenshots/main.png</image>
+      <caption>本棚サイドバーとビューア</caption>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <url type="homepage">https://github.com/rhing-official/komichi</url>
+  <url type="bugtracker">https://github.com/rhing-official/komichi/issues</url>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <releases>
+    <release version="1.0.0" date="2026-07-15">
+      <description>
+        <p>初回リリース。</p>
+      </description>
+    </release>
+  </releases>
+</component>

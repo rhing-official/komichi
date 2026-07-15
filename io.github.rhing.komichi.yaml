@@ -58,6 +58,8 @@ modules:
       - install -D io.github.rhing.komichi.png /app/share/icons/hicolor/512x512/apps/io.github.rhing.komichi.png
       # デスクトップファイルのインストール
       - install -D io.github.rhing.komichi.desktop /app/share/applications/io.github.rhing.komichi.desktop
+      # AppStreamメタデータのインストール
+      - install -D io.github.rhing.komichi.metainfo.xml /app/share/metainfo/io.github.rhing.komichi.metainfo.xml
     sources:
       - type: dir
         path: build/linux/x64/release/bundle
@@ -66,3 +68,5 @@ modules:
         dest-filename: io.github.rhing.komichi.png
       - type: file
         path: io.github.rhing.komichi.desktop
+      - type: file
+        path: io.github.rhing.komichi.metainfo.xml
