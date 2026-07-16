@@ -21,7 +21,7 @@ void main() async {
   // 2. データベース（Hive）を「待機して」確実に準備する
   try {
     final appDir = await getApplicationSupportDirectory();
-    await Hive.initFlutter(appDir.path);
+    Hive.init(appDir.path);
 
     // アダプター登録
     if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(BookAdapter());
