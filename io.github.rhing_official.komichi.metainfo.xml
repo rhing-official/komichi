@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.rhing.komichi</id>
+  <id>io.github.rhing_official.komichi</id>
   <name>komichi</name>
   <summary>本と、二人きり — ローカルのPDF/CBZ電子書籍リーダー</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>LicenseRef-proprietary</project_license>
-  <developer id="io.github.rhing">
+  <developer id="io.github.rhing-official">
     <name>rhing</name>
   </developer>
   <description>
@@ -22,12 +22,11 @@
       <li>キーボード・マウス操作によるページめくり</li>
     </ul>
   </description>
-  <launchable type="desktop-id">io.github.rhing.komichi.desktop</launchable>
+  <launchable type="desktop-id">io.github.rhing_official.komichi.desktop</launchable>
   <screenshots>
-    <!-- TODO: 提出前にスクリーンショットを撮影し、実際にアクセス可能なURLに差し替えること -->
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/rhing-official/komichi/main/docs/screenshots/main.png</image>
-      <caption>本棚サイドバーとビューア</caption>
+      <caption>本棚サイドバー（起動直後の画面）</caption>
     </screenshot>
   </screenshots>
   <content_rating type="oars-1.1"/>
