@@ -45,8 +45,7 @@ msix_config:
   display_name: komichi
   publisher_display_name: Rhing
   identity_name: Rhing.komichi
-  # TODO: Partner Centerでアプリ登録後、発行された実際のPublisher IDに置き換える
-  publisher: CN=00000000-0000-0000-0000-000000000000
+  publisher: CN=05798F0E-41EC-4FF9-BBAB-61384063660A
   msix_version: 1.0.0.0
   logo_path: komichi-icon-512.png
   capabilities: broadFileSystemAccess
