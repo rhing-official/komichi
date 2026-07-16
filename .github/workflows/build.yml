@@ -26,6 +26,12 @@ jobs:
         with:
           name: windows-build
           path: komichi-windows.zip
+      - name: Build MSIX
+        run: dart run msix:create
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-msix
+          path: build/windows/x64/runner/Release/*.msix
 
   build-linux:
     runs-on: ubuntu-latest
@@ -122,6 +128,7 @@ jobs:
         with:
           files: |
             windows-build/komichi-windows.zip
+            windows-msix/*.msix
             linux-build/komichi-linux.tar.gz
             android-build/komichi-android.apk
             macos-build/komichi-macos.zip
