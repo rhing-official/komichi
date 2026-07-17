@@ -46,7 +46,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   // 200msだと速すぎて動きが目に留まらなかったため、体感できる速さまで伸ばし、
   // イージングも付けて動き自体をはっきりさせる
   late final AnimationController _menuAnim = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 10000));
+      vsync: this, duration: const Duration(milliseconds: 1000));
   late final Animation<double> _menuCurve = CurvedAnimation(
       parent: _menuAnim,
       curve: Curves.easeOutCubic,
@@ -237,9 +237,13 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                     _focusNode.requestFocus();
                     final dx = details.localPosition.dx;
                     if (dx < width / 3) {
-                      isLeftToNext ? notifier.nextPage() : notifier.previousPage();
+                      isLeftToNext
+                          ? notifier.nextPage()
+                          : notifier.previousPage();
                     } else if (dx > width * 2 / 3) {
-                      isLeftToNext ? notifier.previousPage() : notifier.nextPage();
+                      isLeftToNext
+                          ? notifier.previousPage()
+                          : notifier.nextPage();
                     } else {
                       notifier.toggleUI();
                     }
@@ -365,8 +369,8 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
             // ため、指定するとこのGestureDetectorのonLongPressStartと
             // ジェスチャーが競合し、長押しメニューが開かなくなる
             child: IconButton(
-                icon: const Icon(Icons.screen_lock_rotation,
-                    color: Colors.white),
+                icon:
+                    const Icon(Icons.screen_lock_rotation, color: Colors.white),
                 onPressed: _toggleOrientation),
           ),
         ],
