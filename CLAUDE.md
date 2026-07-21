@@ -145,3 +145,4 @@ flutter build linux     # / build windows / build apk         # ビルド
 - ユーザーが書き換えたコードに関して、プログラムが動かなくなる場合を除き、修正しない
 - git push,pullは全て https://github.com/rhing-official/komichi で行う
 - コミュニケーションは日本語で行う
+- トークンの取得や管理者権限が不要なターミナルの実行など、全般的な処理は全てClaude Codeが行う
